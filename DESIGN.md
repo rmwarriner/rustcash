@@ -285,15 +285,47 @@ a `ReportContext` serialized as JSON and returns a `ReportOutput`. No unsafe acc
 
 ---
 
-### `import` — File Importers
+### `import` — File Importers and Live Data Downloaders
 
-Each importer is a struct implementing `Importer`:
+The `import` crate handles two distinct data-ingestion paths that share the same
+review-and-confirm flow:
+
+**File importers** parse a local file into an `ImportPreview`. The user reviews the
+preview and confirms before anything is written to storage.
+
+**Live downloaders** fetch transactions from a remote financial data service
+(e.g. SimpleFIN Bridge, Plaid, OFX Direct Connect) and produce the same `ImportPreview`
+for review. The user still confirms before anything is stored — the only difference is
+the data source.
+
+Both paths funnel through `ImportPreview` so the confirmation UI, duplicate detection,
+and storage commit logic are shared.
 
 ```rust
 pub trait Importer: Send + Sync {
     fn name(&self) -> &str;
     fn supported_extensions(&self) -> &[&str];
     fn import(&self, source: &mut dyn Read, book: BookId) -> Result<ImportPreview>;
+}
+
+/// A live financial data source (bank feed, aggregator, etc.).
+/// Async because it performs network I/O.
+pub trait Downloader: Send + Sync {
+    fn name(&self) -> &str;
+
+    /// Fetch transactions since `since` (or all available if None).
+    async fn fetch(
+        &self,
+        credentials: &DownloaderCredentials,
+        book_id: BookId,
+        since: Option<NaiveDate>,
+    ) -> Result<ImportPreview, ImportError>;
+}
+
+/// Opaque credential bundle stored by the caller (storage crate or API layer).
+/// The `Downloader` impl interprets the fields; `import` does not.
+pub struct DownloaderCredentials {
+    pub fields: std::collections::HashMap<String, String>,
 }
 
 pub struct ImportPreview {
@@ -304,7 +336,15 @@ pub struct ImportPreview {
 }
 ```
 
-**Built-in importers:**
+**Credential storage**: credentials are persisted by the `storage` crate (encrypted at
+rest). The `import` crate defines the `DownloaderCredentials` shape but has no knowledge
+of how they are stored or encrypted.
+
+**Planned live downloaders:**
+- `SimplefinDownloader` — SimpleFIN Bridge (open protocol, self-hostable)
+- `OfxDirectDownloader` — OFX Direct Connect (bank-hosted OFX server)
+
+**Planned file importers:**
 - `CsvImporter` — configurable column mapping
 - `OfxImporter` — OFX/QFX (bank/broker exports)
 - `QifImporter` — QIF (Quicken)
