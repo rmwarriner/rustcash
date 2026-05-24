@@ -1,0 +1,18 @@
+[package]
+name        = "rustcash-engine"
+description = "Accounting logic: balances, reconciliation, scheduling, budgeting"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+rustcash-core    = { workspace = true }
+rustcash-storage = { workspace = true }
+rust_decimal     = { workspace = true }
+chrono           = { workspace = true }
+uuid             = { workspace = true }
+serde            = { workspace = true }
+tokio            = { workspace = true }
+thiserror        = { workspace = true }
+anyhow           = { workspace = true }
+tracing          = { workspace = true }

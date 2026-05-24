@@ -1,0 +1,28 @@
+[package]
+name        = "rustcash-cli"
+description = "Command-line interface — scriptable, pipe-friendly, JSON output"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rustcash"
+path = "src/main.rs"
+
+[dependencies]
+rustcash-core    = { workspace = true }
+rustcash-engine  = { workspace = true }
+rustcash-reports = { workspace = true }
+rustcash-import  = { workspace = true }
+rustcash-export  = { workspace = true }
+clap             = { workspace = true }
+tokio            = { workspace = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+chrono           = { workspace = true }
+rust_decimal     = { workspace = true }
+anyhow           = { workspace = true }
+tracing          = { workspace = true }
+tracing-subscriber = { workspace = true }
+config           = { workspace = true }
+dirs             = { workspace = true }

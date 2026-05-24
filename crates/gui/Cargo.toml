@@ -1,0 +1,17 @@
+[package]
+name        = "rustcash-gui"
+description = "Desktop GUI stub — Tauri frontend over the local API server"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rustcash-gui"
+path = "src/main.rs"
+
+[dependencies]
+# Tauri will be added when the GUI phase begins.
+# For now this is a placeholder binary that launches the API server and opens a browser.
+anyhow  = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

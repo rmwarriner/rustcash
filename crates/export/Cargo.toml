@@ -1,0 +1,17 @@
+[package]
+name        = "rustcash-export"
+description = "File format exporters: CSV, OFX"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+rustcash-core    = { workspace = true }
+rustcash-reports = { workspace = true }
+rust_decimal     = { workspace = true }
+chrono           = { workspace = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+thiserror        = { workspace = true }
+anyhow           = { workspace = true }
+tracing          = { workspace = true }

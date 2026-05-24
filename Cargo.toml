@@ -1,0 +1,86 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/storage",
+    "crates/engine",
+    "crates/reports",
+    "crates/import",
+    "crates/export",
+    "crates/api",
+    "crates/plugin",
+    "crates/cli",
+    "crates/tui",
+    "crates/gui",
+    "crates/business",
+    "crates/sync",
+]
+
+[workspace.package]
+edition    = "2024"
+version    = "0.1.0"
+license    = "GPL-3.0-or-later"
+authors    = ["Robert Warriner <rmwarriner@icloud.com>"]
+
+[workspace.dependencies]
+# ── Domain ────────────────────────────────────────────────────────────────────
+rust_decimal = { version = "1", features = ["serde"] }
+chrono       = { version = "0.4", features = ["serde"] }
+uuid         = { version = "1",   features = ["v4", "serde"] }
+
+# ── Serialization ─────────────────────────────────────────────────────────────
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# ── Async ─────────────────────────────────────────────────────────────────────
+tokio = { version = "1", features = ["full"] }
+
+# ── Database ──────────────────────────────────────────────────────────────────
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "sqlite",
+    "postgres",
+    "uuid",
+    "chrono",
+    "rust_decimal",
+    "migrate",
+    "macros",
+] }
+
+# ── HTTP API ──────────────────────────────────────────────────────────────────
+axum        = { version = "0.8", features = ["macros"] }
+tower       = "0.5"
+tower-http  = { version = "0.6", features = ["trace", "cors", "compression-gzip"] }
+
+# ── CLI ───────────────────────────────────────────────────────────────────────
+clap = { version = "4", features = ["derive", "env"] }
+
+# ── TUI ───────────────────────────────────────────────────────────────────────
+ratatui   = "0.29"
+crossterm = "0.28"
+
+# ── WASM plugin host ──────────────────────────────────────────────────────────
+wasmtime = { version = "26", default-features = false, features = ["cranelift", "runtime"] }
+
+# ── Error handling ────────────────────────────────────────────────────────────
+thiserror = "2"
+anyhow    = "1"
+
+# ── Observability ─────────────────────────────────────────────────────────────
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# ── Config ────────────────────────────────────────────────────────────────────
+config = "0.14"
+dirs   = "5"
+
+# ── Internal crates ───────────────────────────────────────────────────────────
+rustcash-core     = { path = "crates/core" }
+rustcash-storage  = { path = "crates/storage" }
+rustcash-engine   = { path = "crates/engine" }
+rustcash-reports  = { path = "crates/reports" }
+rustcash-import   = { path = "crates/import" }
+rustcash-export   = { path = "crates/export" }
+rustcash-plugin   = { path = "crates/plugin" }
+rustcash-business = { path = "crates/business" }
+rustcash-sync     = { path = "crates/sync" }
