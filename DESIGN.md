@@ -422,10 +422,18 @@ pub struct DownloaderCredentials {
     pub fields: std::collections::HashMap<String, String>,
 }
 
+/// A suggested account assignment for one split, produced by the Bayesian classifier.
+pub struct AccountSuggestion {
+    pub split_index: usize,       // index into ImportPreview::transactions[n].splits
+    pub account_id: AccountId,
+    pub confidence: f32,          // 0.0–1.0; classifier's posterior probability
+}
+
 pub struct ImportPreview {
     pub transactions: Vec<Transaction>,
     pub new_accounts: Vec<Account>,
-    pub duplicates: Vec<DuplicateCandidate>,  // matched against existing transactions
+    pub duplicates: Vec<DuplicateCandidate>,      // matched against existing transactions
+    pub account_suggestions: Vec<AccountSuggestion>, // Bayesian account pre-fills
     pub warnings: Vec<String>,
 }
 ```
@@ -444,6 +452,46 @@ of how they are stored or encrypted.
 - `QifImporter` — QIF (Quicken)
 - `GnuCashXmlImporter` — migrate from GnuCash
 - `GnuCashSqlImporter` — migrate from GnuCash SQLite
+
+### Bayesian account matching
+
+Inspired by GnuCash's import matcher. A Naive Bayes text classifier predicts which
+account a split belongs to, based on payee name and memo tokens from past confirmed
+imports. Confidence scores drive UX behaviour:
+
+| Confidence  | UI behaviour |
+|-------------|--------------|
+| ≥ 0.90      | Auto-fill silently; user can still override |
+| 0.60–0.89   | Pre-fill with visual indicator; prompt to confirm |
+| < 0.60      | Show top suggestions; require explicit selection |
+
+**Data flow:**
+
+```
+Import/download
+    └─ engine::classify(description, memo, book_id)
+           └─ reads bayes_hints table from storage
+           └─ returns Vec<AccountSuggestion> (account_id + confidence)
+    └─ suggestions attached to ImportPreview
+
+User confirms import (accepts/overrides suggestions)
+    └─ engine::train(confirmed_splits, book_id)
+           └─ tokenizes payee + memo for each split
+           └─ increments token→account frequency in bayes_hints table
+           └─ model improves with every import
+```
+
+**Tokenisation**: lowercase, strip punctuation, split on whitespace and digits. Discard
+common stop tokens ("the", "inc", "llc", "#", digits-only). Each remaining token is a
+feature.
+
+**Storage**: `bayes_hints` table — one row per (token, account_id) pair with a frequency
+count. The classifier is always recomputed from this table; there is no serialised model
+blob.
+
+**Classifier lives in `engine`** (pure computation, no I/O). The `import` crate calls
+`engine::classify` to populate `account_suggestions`; it does not implement the math
+itself. Training is also an `engine` function called by the storage commit path.
 
 ---
 

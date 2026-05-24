@@ -18,13 +18,26 @@ pub struct DuplicateCandidate {
     pub confidence: f32, // 0.0–1.0
 }
 
+/// Bayesian account suggestion for one split in the preview.
+#[derive(Debug, Clone)]
+pub struct AccountSuggestion {
+    /// Index into the corresponding `Transaction::splits` vec.
+    pub split_index: usize,
+    pub account_id:  rustcash_core::ids::AccountId,
+    /// Posterior probability from the Naive Bayes classifier (0.0–1.0).
+    pub confidence:  f32,
+}
+
 /// Result of a dry-run import — shown to the user before they confirm.
 #[derive(Debug)]
 pub struct ImportPreview {
-    pub transactions:   Vec<Transaction>,
-    pub new_accounts:   Vec<Account>,
-    pub duplicates:     Vec<DuplicateCandidate>,
-    pub warnings:       Vec<String>,
+    pub transactions:        Vec<Transaction>,
+    pub new_accounts:        Vec<Account>,
+    pub duplicates:          Vec<DuplicateCandidate>,
+    /// Bayesian account pre-fills, produced by `engine::classify`.
+    /// UX: auto-fill if confidence ≥ 0.90, prompt if 0.60–0.89, suggest if < 0.60.
+    pub account_suggestions: Vec<AccountSuggestion>,
+    pub warnings:            Vec<String>,
 }
 
 /// Trait implemented by every importer.

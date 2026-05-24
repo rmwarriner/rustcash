@@ -82,6 +82,18 @@ CREATE TABLE IF NOT EXISTS prices (
     created_at   TEXT NOT NULL
 );
 
+-- Bayesian account classifier training data.
+-- One row per (token, account) pair; frequency is incremented on each confirmed import.
+-- The engine recomputes posteriors from these counts at classify time — no model blob.
+CREATE TABLE IF NOT EXISTS bayes_hints (
+    book_id    TEXT NOT NULL REFERENCES books(id),
+    token      TEXT NOT NULL,
+    account_id TEXT NOT NULL REFERENCES accounts(id),
+    frequency  INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (book_id, token, account_id)
+);
+
 -- Performance indexes
 CREATE INDEX IF NOT EXISTS idx_accounts_book     ON accounts(book_id);
 CREATE INDEX IF NOT EXISTS idx_accounts_parent   ON accounts(parent_id);
