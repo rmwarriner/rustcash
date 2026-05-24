@@ -1,0 +1,56 @@
+"area:core":
+  - crates/core/**
+
+"area:storage":
+  - crates/storage/**
+
+"area:engine":
+  - crates/engine/**
+
+"area:reports":
+  - crates/reports/**
+
+"area:import":
+  - crates/import/**
+
+"area:export":
+  - crates/export/**
+
+"area:api":
+  - crates/api/**
+
+"area:plugin":
+  - crates/plugin/**
+
+"area:cli":
+  - crates/cli/**
+
+"area:tui":
+  - crates/tui/**
+
+"area:gui":
+  - crates/gui/**
+
+"area:business":
+  - crates/business/**
+
+"area:sync":
+  - crates/sync/**
+
+"area:ci":
+  - .github/workflows/**
+  - .github/labeler.yml
+  - justfile
+
+"area:docs":
+  - "*.md"
+  - docs/**
+  - .github/PULL_REQUEST_TEMPLATE.md
+  - .github/ISSUE_TEMPLATE/**
+
+"area:tooling":
+  - .pre-commit-config.yaml
+  - .editorconfig
+  - rustfmt.toml
+  - Cargo.toml
+  - Cargo.lock

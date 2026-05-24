@@ -22,6 +22,19 @@ version    = "0.1.0"
 license    = "GPL-3.0-or-later"
 authors    = ["Robert Warriner <rmwarriner@icloud.com>"]
 
+# ── Workspace-wide lint configuration ────────────────────────────────────────
+[workspace.lints.rust]
+unsafe_code     = "forbid"
+unused_must_use = "warn"
+
+[workspace.lints.clippy]
+all             = { level = "warn", priority = -1 }
+# Allows that are consistently too noisy across a layered workspace:
+module_name_repetitions = "allow"  # e.g. StorageError in storage module
+must_use_candidate      = "allow"  # gradually opt-in with #[must_use]
+missing_errors_doc      = "allow"  # add gradually
+missing_panics_doc      = "allow"  # add gradually
+
 [workspace.dependencies]
 # ── Domain ────────────────────────────────────────────────────────────────────
 rust_decimal = { version = "1", features = ["serde"] }
@@ -73,6 +86,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 # ── Config ────────────────────────────────────────────────────────────────────
 config = "0.14"
 dirs   = "5"
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+proptest = "1"
 
 # ── Internal crates ───────────────────────────────────────────────────────────
 rustcash-core     = { path = "crates/core" }
