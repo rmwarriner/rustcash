@@ -126,6 +126,7 @@ pub struct Split {
     pub commodity: CommodityId,
     pub reconciled: ReconcileState,
     pub memo: Option<String>,
+    pub tags: Vec<String>,      // first-class, per-split (complements transaction-level tags)
 }
 
 pub enum ReconcileState { Unreconciled, Cleared, Reconciled }
@@ -663,6 +664,7 @@ CREATE TABLE splits (
     reconcile_state TEXT NOT NULL DEFAULT 'n',  -- 'n', 'c', 'y'
     reconcile_date  DATE,
     memo            TEXT,
+    tags            TEXT NOT NULL DEFAULT '[]',  -- JSON array; first-class per-split tags
     action          TEXT,  -- 'Buy', 'Sell', 'Div', etc. for investments
     lot_id          UUID,  -- for cost-basis lot tracking
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()

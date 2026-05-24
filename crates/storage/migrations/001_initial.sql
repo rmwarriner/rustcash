@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS splits (
     reconcile_state TEXT NOT NULL DEFAULT 'unreconciled',
     reconcile_date  TEXT,
     memo            TEXT,
+    tags            TEXT NOT NULL DEFAULT '[]',  -- JSON array; first-class per-split tags
     action          TEXT,
     lot_id          TEXT,
     created_at      TEXT NOT NULL

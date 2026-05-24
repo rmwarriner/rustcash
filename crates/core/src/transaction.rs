@@ -28,6 +28,10 @@ pub struct Split {
     pub reconcile_state: ReconcileState,
     pub reconcile_date:  Option<NaiveDate>,
     pub memo:            Option<String>,
+    /// First-class per-split tags. Complements transaction-level tags.
+    /// Use when legs of the same transaction need different labels
+    /// (e.g. one split is "business", another is "personal").
+    pub tags:            Vec<String>,
     /// Investment action label: "Buy", "Sell", "Div", "IntInc", etc.
     pub action:          Option<String>,
     /// Cost-basis lot — used for investment gain/loss tracking.
