@@ -48,21 +48,44 @@ impl Split {
     }
 }
 
+/// GAAP-style transaction lifecycle.
+///
+/// Once `Posted`, a transaction is immutable. Corrections are made by voiding
+/// (which produces a reversing entry) and entering a new correcting transaction.
+/// Transactions are **never deleted** — voiding is the only retirement path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionStatus {
+    #[default]
+    Draft,  // staging; editable; excluded from balance calculations
+    Posted, // immutable; included in all balance calculations
+    Void,   // excluded from balances; reversing entry links back here
+}
+
+impl TransactionStatus {
+    pub fn is_posted(&self) -> bool { matches!(self, Self::Posted) }
+    pub fn is_draft(&self) -> bool { matches!(self, Self::Draft) }
+    pub fn is_void(&self) -> bool { matches!(self, Self::Void) }
+}
+
 /// A balanced double-entry transaction.
 ///
 /// Invariant: `splits.iter().map(|s| s.amount).sum() == Decimal::ZERO`.
 /// This is enforced at construction time via [`Transaction::new`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Transaction {
-    pub id:          TransactionId,
-    pub book_id:     BookId,
-    pub date:        NaiveDate,
-    pub description: String,
-    pub notes:       Option<String>,
-    pub tags:        Vec<String>,
-    pub splits:      Vec<Split>,
-    pub entered_at:  DateTime<Utc>,
-    pub modified_at: DateTime<Utc>,
+    pub id:                     TransactionId,
+    pub book_id:                BookId,
+    pub date:                   NaiveDate,
+    pub description:            String,
+    pub notes:                  Option<String>,
+    pub tags:                   Vec<String>,
+    pub splits:                 Vec<Split>,
+    pub status:                 TransactionStatus,
+    /// Set when `status == Void`. Points to the reversing transaction.
+    pub voiding_transaction_id: Option<TransactionId>,
+    pub entered_at:             DateTime<Utc>,
+    pub modified_at:            DateTime<Utc>,
 }
 
 impl Transaction {
@@ -90,6 +113,8 @@ impl Transaction {
             notes: None,
             tags: Vec::new(),
             splits,
+            status: TransactionStatus::Draft,
+            voiding_transaction_id: None,
             entered_at: now,
             modified_at: now,
         })

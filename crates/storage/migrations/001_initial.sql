@@ -3,12 +3,13 @@
 -- UUIDs are stored as TEXT (SQLite) or UUID (PostgreSQL).
 
 CREATE TABLE IF NOT EXISTS books (
-    id           TEXT PRIMARY KEY,
-    name         TEXT NOT NULL,
-    description  TEXT,
+    id                   TEXT PRIMARY KEY,
+    name                 TEXT NOT NULL,
+    description          TEXT,
     default_commodity_id TEXT NOT NULL,
-    created_at   TEXT NOT NULL,
-    modified_at  TEXT NOT NULL
+    period_close_date    TEXT,  -- no Posted entries allowed on or before this date
+    created_at           TEXT NOT NULL,
+    modified_at          TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS commodities (
@@ -41,15 +42,17 @@ CREATE TABLE IF NOT EXISTS accounts (
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
-    id          TEXT PRIMARY KEY,
-    book_id     TEXT NOT NULL REFERENCES books(id),
-    date        TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
-    notes       TEXT,
-    tags        TEXT NOT NULL DEFAULT '[]',  -- JSON array of strings
-    entered_at  TEXT NOT NULL,
-    modified_at TEXT NOT NULL,
-    deleted_at  TEXT
+    id                      TEXT PRIMARY KEY,
+    book_id                 TEXT NOT NULL REFERENCES books(id),
+    date                    TEXT NOT NULL,
+    description             TEXT NOT NULL DEFAULT '',
+    notes                   TEXT,
+    tags                    TEXT NOT NULL DEFAULT '[]',  -- JSON array of strings
+    status                  TEXT NOT NULL DEFAULT 'draft',  -- 'draft' | 'posted' | 'void'
+    voiding_transaction_id  TEXT REFERENCES transactions(id),  -- set when status = 'void'
+    entered_at              TEXT NOT NULL,
+    modified_at             TEXT NOT NULL
+    -- No deleted_at: transactions are never soft-deleted. Voiding is the only retirement path.
 );
 
 CREATE TABLE IF NOT EXISTS splits (

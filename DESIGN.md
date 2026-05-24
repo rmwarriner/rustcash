@@ -108,6 +108,15 @@ pub struct Account {
     pub hidden: bool,
 }
 
+/// GAAP-style lifecycle. Once Posted, a transaction is immutable.
+/// Corrections are made by voiding (which creates a reversing entry)
+/// and entering a new correcting transaction — never by editing in place.
+pub enum TransactionStatus {
+    Draft,   // freely editable, not included in balances
+    Posted,  // immutable; included in all balance calculations
+    Void,    // removed from balances; reversing entry links back here
+}
+
 pub struct Transaction {
     pub id: TransactionId,
     pub date: NaiveDate,
@@ -115,6 +124,9 @@ pub struct Transaction {
     pub splits: Vec<Split>,     // always sum to zero (validated)
     pub tags: Vec<String>,
     pub notes: Option<String>,
+    pub status: TransactionStatus,
+    /// Set when status == Void. Points to the reversing transaction.
+    pub voiding_transaction_id: Option<TransactionId>,
     pub entered_at: DateTime<Utc>,
     pub modified_at: DateTime<Utc>,
 }
@@ -159,6 +171,67 @@ pub struct Budget {
 - Transaction splits must sum to zero (validated on construction)
 - Account trees have no cycles
 - Amounts use `rust_decimal` — floats are never used, never accepted
+- A `Posted` transaction is structurally immutable — `core` enforces this at the type level
+- A `Void` transaction must have a corresponding reversing transaction (enforced in `engine`)
+
+---
+
+## Accounting Principles
+
+RustCash follows **household-level GAAP** — the subset of Generally Accepted Accounting
+Principles that is meaningful and practical for personal and small-business finances.
+
+### Append-only ledger
+
+The ledger is **append-only once transactions are posted**. This is the most important
+accounting correctness principle in the system.
+
+| State    | Mutable? | In balances? | Notes |
+|----------|----------|--------------|-------|
+| `Draft`  | Yes      | No           | Pre-entry staging; freely editable |
+| `Posted` | No       | Yes          | Immutable; only voiding is permitted |
+| `Void`   | No       | No           | Kept forever; links to its reversing entry |
+
+**How to correct a mistake in a posted transaction:**
+1. Void the original — engine creates a reversing transaction (negated splits, same date)
+2. Enter a new correcting transaction with the right amounts
+3. Both the void and the correction appear in the audit log forever
+
+Soft-delete (`deleted_at`) applies only to non-financial records (accounts, commodities).
+**Transactions are never soft-deleted** — voiding is the only retirement path.
+
+### Accrual support
+
+Both **cash basis** and **accrual basis** reporting are supported. Accrual entries are
+future-dated `Draft` transactions (e.g. an invoice not yet paid) that become `Posted`
+when the cash settles. Reports can be rendered on either basis.
+
+### Period consistency
+
+A fiscal period (month, quarter, year) uses the same:
+- Chart of accounts
+- Reporting commodity
+- Accounting basis (cash or accrual)
+
+Changing any of these mid-period requires a new period entry, not retroactive edits.
+
+### Period close
+
+Books can be **closed** at a date. A closed period:
+- Rejects any new `Posted` entries dated on or before the close date
+- Still allows `Draft` entries for review before posting into the next open period
+- Is stored as a `period_close_date` on the `Book`
+
+### Matching principle
+
+Budget allocations are period-bounded. An expense is matched to the budget period in
+which it was incurred, not when it was paid (for accrual basis users).
+
+### Audit trail
+
+Every write to the ledger is append-only and timestamped (`entered_at`, `modified_at`).
+Void transactions and their reversing entries are kept indefinitely. There is no mechanism
+to permanently erase financial history.
 
 ---
 
