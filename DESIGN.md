@@ -192,13 +192,33 @@ accounting correctness principle in the system.
 | `Posted` | No       | Yes          | Immutable; only voiding is permitted |
 | `Void`   | No       | No           | Kept forever; links to its reversing entry |
 
-**How to correct a mistake in a posted transaction:**
-1. Void the original — engine creates a reversing transaction (negated splits, same date)
-2. Enter a new correcting transaction with the right amounts
-3. Both the void and the correction appear in the audit log forever
-
 Soft-delete (`deleted_at`) applies only to non-financial records (accounts, commodities).
 **Transactions are never soft-deleted** — voiding is the only retirement path.
+
+### UX principle: hide the mechanics
+
+**Most users are not accountants.** The append-only model is an implementation detail,
+not a user-facing concept. All interfaces (CLI, TUI, GUI, API) must wrap the mechanics
+in plain verbs:
+
+| User action          | What the engine does (invisible to user)                          |
+|----------------------|-------------------------------------------------------------------|
+| Edit a transaction   | Void original + create reversing entry + post correcting entry    |
+| Delete a transaction | Void original + create reversing entry                            |
+| Save a new entry     | Post the draft                                                    |
+
+Rules for all interfaces:
+- The words "void", "reversing entry", and "correcting entry" **never appear** in UI copy
+  or error messages shown to end users
+- The transaction register shows only `Posted` entries by default; `Draft` entries appear
+  in a clearly-labelled "pending" section
+- `Void` entries are hidden from the register entirely unless the user explicitly opens an
+  audit/history view (a power-user feature, not the default)
+- "Edit" and "Delete" feel instant and normal — the engine handles the accounting atomically
+  in a single SQL transaction
+- Error messages use plain language: "couldn't save changes" not "void operation failed"
+
+The audit log is surfaced as an optional detail view, not as the default register.
 
 ### Accrual support
 
