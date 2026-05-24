@@ -544,38 +544,91 @@ no install scripts — safe to install from the community.
 
 Built with `clap`. First-class interface, not a debugging tool.
 
+**Design philosophy: follow ledger/hledger conventions.**
+Users who know `ledger` or `hledger` should feel immediately at home. Short verb names,
+consistent filtering flags across all commands, account name patterns as positional
+arguments, and period expressions are all modelled on that tradition.
+
 **Design goals:**
-- Machine-readable output (`--format json`)
-- Scriptable: pipe-friendly, exit codes, no interactive prompts unless opted in
+- Machine-readable output (`-O json` / `-O csv`)
+- Scriptable: pipe-friendly, predictable exit codes, no interactive prompts unless opted in
 - Composable with standard Unix tools
+- Short command aliases for common operations (`bal`, `reg`, `print`, `add`)
+
+**Global flags (available on every command):**
+
+```
+-f, --file <PATH>          Database file (default: $RUSTCASH_FILE or ./rustcash.db)
+-b, --begin <DATE>         Start date (inclusive). Accepts YYYY-MM-DD or period words
+-e, --end <DATE>           End date (exclusive)
+-p, --period <EXPR>        Period expression: "last month", "this year", "2024-Q2", etc.
+                           Overrides -b/-e if all three are given
+-C, --cleared              Only cleared and reconciled transactions
+-U, --uncleared            Only uncleared transactions
+-R, --reconciled           Only reconciled transactions
+-O, --output-format <FMT>  Output format: text (default), csv, json, html
+-o, --output-file <PATH>   Write output to file instead of stdout
+    --depth <N>            Truncate account tree at depth N
+    --color / --no-color   Force or suppress ANSI colour
+-v, --verbose              More detail; repeatable (-vv)
+-q, --quiet                Suppress non-essential output
+```
 
 **Command structure:**
 
 ```
-rustcash account list [--format table|json|csv]
-rustcash account show <id>
-rustcash account balance <id> [--as-of YYYY-MM-DD]
-rustcash account tree
+# Balance reports
+rustcash bal [ACCT_PATTERN...]       Account balances (alias: balance)
+rustcash bs                          Balance sheet (assets & liabilities)
+rustcash is                          Income statement (income & expenses)
+rustcash cf                          Cash flow statement
 
-rustcash transaction list [--account <id>] [--from DATE] [--to DATE]
-rustcash transaction add    ← interactive or --from-json
-rustcash transaction show <id>
-rustcash transaction delete <id>
+# Transaction register
+rustcash reg [ACCT_PATTERN...]       Transaction register (alias: register)
+rustcash print [ACCT_PATTERN...]     Print transactions in rustcash journal format
 
-rustcash import <file> [--format csv|ofx|qif|gnucash]
-rustcash export <file> [--format csv|ofx]
+# Data entry
+rustcash add                         Interactively add a transaction
+rustcash edit <ID>                   Edit a transaction (engine handles void+repost)
+rustcash delete <ID>                 Delete a transaction (engine handles void)
 
-rustcash report list
-rustcash report render <report-id> [--from DATE] [--to DATE] [--format html|csv|json]
+# Account management
+rustcash accounts [PATTERN]          List accounts (alias: account)
+rustcash accounts tree [PATTERN]     Account hierarchy
 
-rustcash reconcile <account-id> --statement-date DATE --statement-balance AMOUNT
+# Import / export
+rustcash import <FILE> [--format csv|ofx|qif|gnucash]
+rustcash export <FILE> [--format csv|ofx]
+rustcash fetch                       Pull from configured live downloaders (SimpleFIN, etc.)
 
-rustcash serve [--port 8080]    ← start the API server
+# Reconciliation
+rustcash reconcile <ACCT_PATTERN> --statement-date DATE --statement-balance AMOUNT
 
+# Reporting
+rustcash reports                     List available reports (built-in + plugins)
+rustcash report <REPORT-ID>          Run a named report
+
+# Commodities & prices
+rustcash commodities                 List commodities
+rustcash prices [COMMODITY]          Show price history
+
+# Statistics
+rustcash stats                       Journal statistics (# transactions, date range, etc.)
+
+# Infrastructure
+rustcash serve [--port 8080]         Start the API server
 rustcash plugin list
-rustcash plugin install <path.wasm>
-rustcash plugin remove <id>
+rustcash plugin install <PATH.wasm>
+rustcash plugin remove <ID>
 ```
+
+**Account patterns** are substring/glob matches against the full account name
+(e.g. `expenses` matches `Expenses:Food:Restaurants`). Multiple patterns are OR-combined.
+
+**Period expressions** accepted by `-p`:
+- `today`, `yesterday`, `this week`, `last week`
+- `this month`, `last month`, `this quarter`, `last quarter`, `this year`, `last year`
+- `2024`, `2024-Q3`, `2024-09`, `2024-09-01..2024-09-30`
 
 ---
 
