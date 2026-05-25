@@ -48,4 +48,5 @@ pub struct Price {
     pub date:         NaiveDate,
     pub value:        Decimal,
     pub source:       PriceSource,
+    pub created_at:   DateTime<Utc>,
 }
