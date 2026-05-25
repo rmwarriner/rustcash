@@ -3,6 +3,7 @@
 //! centralise the parsing and produce consistent StorageError messages on failure.
 
 use chrono::{DateTime, NaiveDate, Utc};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::StorageError;
@@ -35,4 +36,22 @@ pub fn date_opt_from_str(
     field: &'static str,
 ) -> Result<Option<NaiveDate>, StorageError> {
     s.map(|v| date_from_str(v, field)).transpose()
+}
+
+/// Serialize a unit-variant enum to its serde string representation.
+/// Relies on the enum having `#[serde(rename_all = "snake_case")]` or similar.
+pub fn enum_to_str<T: Serialize>(value: &T) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default()
+}
+
+/// Deserialize a unit-variant enum from its serde string representation.
+pub fn enum_from_str<T: for<'de> Deserialize<'de>>(
+    s: &str,
+    field: &'static str,
+) -> Result<T, StorageError> {
+    serde_json::from_value(serde_json::Value::String(s.to_string()))
+        .map_err(|e| StorageError::Constraint(format!("invalid {field} value '{s}': {e}")))
 }
