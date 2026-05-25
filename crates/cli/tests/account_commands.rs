@@ -1,7 +1,8 @@
 use chrono::{NaiveDate, Utc};
 use rustcash_cli::commands::account::{
-    account_type_str, get_account, get_account_balance, list_accounts, render_csv, render_detail,
-    render_json, render_table,
+    CreateAccountArgs, account_type_str, cmd_create, cmd_delete, cmd_rename, get_account,
+    get_account_balance, list_accounts, parse_account_type, render_csv, render_detail, render_json,
+    render_table,
 };
 use rustcash_core::{
     account::{Account, AccountType},
@@ -36,6 +37,43 @@ async fn insert_book(pool: &SqlitePool) -> Book {
         .await
         .unwrap();
     book
+}
+
+/// Create a book whose `default_commodity_id` points to a real commodity row.
+/// Use this fixture when the test calls `cmd_create` without an explicit currency.
+async fn insert_book_with_commodity(pool: &SqlitePool) -> (Book, Commodity) {
+    let book_id = BookId::new();
+    let commodity_id = CommodityId::new();
+    let commodity = Commodity {
+        id: commodity_id,
+        book_id,
+        namespace: "CURRENCY".into(),
+        mnemonic: "USD".into(),
+        name: "US Dollar".into(),
+        fraction: 100,
+        notes: None,
+        created_at: Utc::now(),
+    };
+    let book = Book {
+        id: book_id,
+        name: "Test Book".into(),
+        description: None,
+        default_commodity_id: commodity_id,
+        period_close_date: None,
+        owner_id: None,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
+    };
+    BookRepository::new(pool.clone())
+        .insert(&book)
+        .await
+        .unwrap();
+    CommodityRepository::new(pool.clone())
+        .insert(&commodity)
+        .await
+        .unwrap();
+    (book, commodity)
 }
 
 async fn insert_commodity(pool: &SqlitePool, book_id: BookId) -> Commodity {
@@ -272,4 +310,239 @@ fn render_detail_shows_key_fields() {
     assert!(output.contains("Assets:Checking"));
     assert!(output.contains("bank"));
     assert!(output.contains("My main account"));
+}
+
+// ── parse_account_type ────────────────────────────────────────────────────────
+
+#[test]
+fn parse_account_type_known_values() {
+    assert_eq!(parse_account_type("bank").unwrap(), AccountType::Bank);
+    assert_eq!(
+        parse_account_type("credit_card").unwrap(),
+        AccountType::CreditCard
+    );
+    assert_eq!(parse_account_type("expense").unwrap(), AccountType::Expense);
+    assert_eq!(parse_account_type("income").unwrap(), AccountType::Income);
+}
+
+#[test]
+fn parse_account_type_rejects_unknown() {
+    assert!(parse_account_type("savings").is_err());
+    assert!(parse_account_type("").is_err());
+}
+
+// ── cmd_create ────────────────────────────────────────────────────────────────
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn create_root_account(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+
+    cmd_create(
+        &pool,
+        book.id,
+        CreateAccountArgs {
+            name: "Assets",
+            type_str: "asset",
+            parent_id: None,
+            commodity_id: Some(commodity.id.to_string().as_str()),
+            description: None,
+            placeholder: false,
+            hidden: false,
+        },
+    )
+    .await
+    .unwrap();
+
+    let accounts = list_accounts(&pool, book.id).await.unwrap();
+    assert_eq!(accounts.len(), 1);
+    assert_eq!(accounts[0].name, "Assets");
+    assert_eq!(accounts[0].full_name, "Assets");
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn create_child_inherits_full_name(pool: SqlitePool) {
+    let (book, commodity) = insert_book_with_commodity(&pool).await;
+
+    cmd_create(
+        &pool,
+        book.id,
+        CreateAccountArgs {
+            name: "Assets",
+            type_str: "asset",
+            parent_id: None,
+            commodity_id: Some(commodity.id.to_string().as_str()),
+            description: None,
+            placeholder: false,
+            hidden: false,
+        },
+    )
+    .await
+    .unwrap();
+
+    let parent = list_accounts(&pool, book.id)
+        .await
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+
+    cmd_create(
+        &pool,
+        book.id,
+        CreateAccountArgs {
+            name: "Checking",
+            type_str: "bank",
+            parent_id: Some(parent.id.to_string().as_str()),
+            commodity_id: None,
+            description: None,
+            placeholder: false,
+            hidden: false,
+        },
+    )
+    .await
+    .unwrap();
+
+    let accounts = list_accounts(&pool, book.id).await.unwrap();
+    let child = accounts.iter().find(|a| a.name == "Checking").unwrap();
+    assert_eq!(child.full_name, "Assets:Checking");
+    assert_eq!(child.parent_id, Some(parent.id));
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn create_uses_book_default_commodity_when_none_given(pool: SqlitePool) {
+    let (book, commodity) = insert_book_with_commodity(&pool).await;
+
+    cmd_create(
+        &pool,
+        book.id,
+        CreateAccountArgs {
+            name: "Expenses",
+            type_str: "expense",
+            parent_id: None,
+            commodity_id: None,
+            description: None,
+            placeholder: false,
+            hidden: false,
+        },
+    )
+    .await
+    .unwrap();
+
+    let accounts = list_accounts(&pool, book.id).await.unwrap();
+    assert_eq!(accounts[0].commodity_id, commodity.id);
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn create_with_invalid_type_errors(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    insert_commodity(&pool, book.id).await;
+
+    let err = cmd_create(
+        &pool,
+        book.id,
+        CreateAccountArgs {
+            name: "X",
+            type_str: "not_a_type",
+            parent_id: None,
+            commodity_id: None,
+            description: None,
+            placeholder: false,
+            hidden: false,
+        },
+    )
+    .await;
+    assert!(err.is_err());
+    assert!(
+        err.unwrap_err()
+            .to_string()
+            .contains("unknown account type")
+    );
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn create_with_missing_parent_errors(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    insert_commodity(&pool, book.id).await;
+    let fake_parent = uuid::Uuid::new_v4().to_string();
+
+    let err = cmd_create(
+        &pool,
+        book.id,
+        CreateAccountArgs {
+            name: "Checking",
+            type_str: "bank",
+            parent_id: Some(fake_parent.as_str()),
+            commodity_id: None,
+            description: None,
+            placeholder: false,
+            hidden: false,
+        },
+    )
+    .await;
+    assert!(err.is_err());
+}
+
+// ── cmd_rename ────────────────────────────────────────────────────────────────
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn rename_updates_name_and_full_name(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Checking",
+        "Assets:Checking",
+        AccountType::Bank,
+    );
+    repo.insert(&acct).await.unwrap();
+
+    cmd_rename(&pool, &acct.id.to_string(), "Main Checking")
+        .await
+        .unwrap();
+
+    let updated = get_account(&pool, &acct.id.to_string()).await.unwrap();
+    assert_eq!(updated.name, "Main Checking");
+    assert_eq!(updated.full_name, "Main Checking");
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn rename_nonexistent_account_errors(pool: SqlitePool) {
+    let err = cmd_rename(&pool, &uuid::Uuid::new_v4().to_string(), "X").await;
+    assert!(err.is_err());
+}
+
+// ── cmd_delete ────────────────────────────────────────────────────────────────
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn delete_soft_deletes_account(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "OldAccount",
+        "OldAccount",
+        AccountType::Asset,
+    );
+    repo.insert(&acct).await.unwrap();
+
+    cmd_delete(&pool, &acct.id.to_string()).await.unwrap();
+
+    // soft-deleted account no longer appears in the active list
+    let active = list_accounts(&pool, book.id).await.unwrap();
+    assert!(active.is_empty());
+
+    // but it still exists in the DB with deleted_at set
+    let raw = repo.find_by_id(acct.id).await.unwrap().unwrap();
+    assert!(raw.deleted_at.is_some());
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn delete_nonexistent_account_errors(pool: SqlitePool) {
+    let err = cmd_delete(&pool, &uuid::Uuid::new_v4().to_string()).await;
+    assert!(err.is_err());
 }
