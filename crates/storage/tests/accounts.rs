@@ -269,6 +269,51 @@ async fn update_changes_fields(pool: SqlitePool) {
 }
 
 #[sqlx::test]
+async fn find_by_full_name_returns_account(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool);
+    let mut acct = make_account(book.id, commodity.id);
+    acct.full_name = "Assets:Checking".into();
+    repo.insert(&acct).await.unwrap();
+
+    let found = repo
+        .find_by_full_name(book.id, "Assets:Checking")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(found.id, acct.id);
+}
+
+#[sqlx::test]
+async fn find_by_full_name_returns_none_for_unknown(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let repo = AccountRepository::new(pool);
+    let result = repo
+        .find_by_full_name(book.id, "Nonexistent:Account")
+        .await
+        .unwrap();
+    assert!(result.is_none());
+}
+
+#[sqlx::test]
+async fn find_by_full_name_ignores_deleted(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool);
+    let mut acct = make_account(book.id, commodity.id);
+    acct.full_name = "Assets:Gone".into();
+    repo.insert(&acct).await.unwrap();
+    repo.soft_delete(acct.id, Utc::now()).await.unwrap();
+
+    let result = repo
+        .find_by_full_name(book.id, "Assets:Gone")
+        .await
+        .unwrap();
+    assert!(result.is_none());
+}
+
+#[sqlx::test]
 async fn soft_delete_sets_deleted_at(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;

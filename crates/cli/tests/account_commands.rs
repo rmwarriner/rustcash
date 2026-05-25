@@ -198,22 +198,66 @@ async fn get_account_finds_by_id(pool: SqlitePool) {
     );
     repo.insert(&acct).await.unwrap();
 
-    let found = get_account(&pool, &acct.id.to_string()).await.unwrap();
+    let found = get_account(&pool, &acct.id.to_string(), book.id)
+        .await
+        .unwrap();
     assert_eq!(found.id, acct.id);
     assert_eq!(found.full_name, "Assets:Checking");
 }
 
 #[sqlx::test(migrations = "../storage/migrations")]
-async fn get_account_errors_on_bad_id(pool: SqlitePool) {
-    let err = get_account(&pool, "not-a-uuid").await;
-    assert!(err.is_err());
-    assert!(err.unwrap_err().to_string().contains("invalid account ID"));
+async fn get_account_finds_by_full_name(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Checking",
+        "Assets:Checking",
+        AccountType::Bank,
+    );
+    repo.insert(&acct).await.unwrap();
+
+    let found = get_account(&pool, "Assets:Checking", book.id)
+        .await
+        .unwrap();
+    assert_eq!(found.id, acct.id);
 }
 
 #[sqlx::test(migrations = "../storage/migrations")]
-async fn get_account_errors_when_not_found(pool: SqlitePool) {
+async fn get_account_finds_root_by_name(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Assets",
+        "Assets",
+        AccountType::Asset,
+    );
+    repo.insert(&acct).await.unwrap();
+
+    let found = get_account(&pool, "Assets", book.id).await.unwrap();
+    assert_eq!(found.id, acct.id);
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn get_account_errors_when_not_found_by_id(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
     let missing_id = AccountId::new().to_string();
-    let err = get_account(&pool, &missing_id).await;
+    let err = get_account(&pool, &missing_id, book.id).await;
+    assert!(err.is_err());
+    assert!(err.unwrap_err().to_string().contains("not found"));
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn get_account_errors_when_not_found_by_name(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let err = get_account(&pool, "Assets:Nonexistent", book.id).await;
     assert!(err.is_err());
     assert!(err.unwrap_err().to_string().contains("not found"));
 }
@@ -499,18 +543,45 @@ async fn rename_updates_name_and_full_name(pool: SqlitePool) {
     );
     repo.insert(&acct).await.unwrap();
 
-    cmd_rename(&pool, &acct.id.to_string(), "Main Checking")
+    cmd_rename(&pool, book.id, &acct.id.to_string(), "Main Checking")
         .await
         .unwrap();
 
-    let updated = get_account(&pool, &acct.id.to_string()).await.unwrap();
+    let updated = get_account(&pool, &acct.id.to_string(), book.id)
+        .await
+        .unwrap();
     assert_eq!(updated.name, "Main Checking");
     assert_eq!(updated.full_name, "Main Checking");
 }
 
 #[sqlx::test(migrations = "../storage/migrations")]
+async fn rename_by_full_name(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Checking",
+        "Assets:Checking",
+        AccountType::Bank,
+    );
+    repo.insert(&acct).await.unwrap();
+
+    cmd_rename(&pool, book.id, "Assets:Checking", "Main Checking")
+        .await
+        .unwrap();
+
+    let updated = get_account(&pool, &acct.id.to_string(), book.id)
+        .await
+        .unwrap();
+    assert_eq!(updated.name, "Main Checking");
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
 async fn rename_nonexistent_account_errors(pool: SqlitePool) {
-    let err = cmd_rename(&pool, &uuid::Uuid::new_v4().to_string(), "X").await;
+    let book = insert_book(&pool).await;
+    let err = cmd_rename(&pool, book.id, &uuid::Uuid::new_v4().to_string(), "X").await;
     assert!(err.is_err());
 }
 
@@ -530,7 +601,9 @@ async fn delete_soft_deletes_account(pool: SqlitePool) {
     );
     repo.insert(&acct).await.unwrap();
 
-    cmd_delete(&pool, &acct.id.to_string()).await.unwrap();
+    cmd_delete(&pool, book.id, &acct.id.to_string())
+        .await
+        .unwrap();
 
     // soft-deleted account no longer appears in the active list
     let active = list_accounts(&pool, book.id).await.unwrap();
@@ -542,7 +615,28 @@ async fn delete_soft_deletes_account(pool: SqlitePool) {
 }
 
 #[sqlx::test(migrations = "../storage/migrations")]
+async fn delete_by_full_name(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "OldAccount",
+        "OldAccount",
+        AccountType::Asset,
+    );
+    repo.insert(&acct).await.unwrap();
+
+    cmd_delete(&pool, book.id, "OldAccount").await.unwrap();
+
+    let raw = repo.find_by_id(acct.id).await.unwrap().unwrap();
+    assert!(raw.deleted_at.is_some());
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
 async fn delete_nonexistent_account_errors(pool: SqlitePool) {
-    let err = cmd_delete(&pool, &uuid::Uuid::new_v4().to_string()).await;
+    let book = insert_book(&pool).await;
+    let err = cmd_delete(&pool, book.id, &uuid::Uuid::new_v4().to_string()).await;
     assert!(err.is_err());
 }

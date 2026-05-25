@@ -242,7 +242,7 @@ async fn main() -> Result<()> {
                     cmd_list(&ctx.pool, ctx.book_id, &format).await?;
                 }
                 AccountCmd::Show { id } => {
-                    cmd_show(&ctx.pool, &id).await?;
+                    cmd_show(&ctx.pool, ctx.book_id, &id).await?;
                 }
                 AccountCmd::Balance { id, as_of } => {
                     cmd_balance(&ctx.pool, &id, ctx.book_id, as_of.as_deref()).await?;
@@ -272,10 +272,10 @@ async fn main() -> Result<()> {
                     .await?;
                 }
                 AccountCmd::Rename { id, name } => {
-                    cmd_rename(&ctx.pool, &id, &name).await?;
+                    cmd_rename(&ctx.pool, ctx.book_id, &id, &name).await?;
                 }
                 AccountCmd::Delete { id } => {
-                    cmd_delete(&ctx.pool, &id).await?;
+                    cmd_delete(&ctx.pool, ctx.book_id, &id).await?;
                 }
             }
         }

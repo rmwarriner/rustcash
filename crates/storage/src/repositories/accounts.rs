@@ -123,6 +123,24 @@ impl AccountRepository {
         .collect()
     }
 
+    /// Look up a non-deleted account by its full hierarchical name within a book.
+    pub async fn find_by_full_name(
+        &self,
+        book_id: BookId,
+        full_name: &str,
+    ) -> Result<Option<Account>, StorageError> {
+        sqlx::query_as::<_, AccountRow>(&format!(
+            "SELECT {SELECT_COLS} FROM accounts \
+             WHERE book_id = ? AND full_name = ? AND deleted_at IS NULL"
+        ))
+        .bind(book_id.to_string())
+        .bind(full_name)
+        .fetch_optional(&self.pool)
+        .await?
+        .map(AccountRow::into_account)
+        .transpose()
+    }
+
     /// Direct children of a parent account (non-deleted only).
     /// Used by the engine for tree traversal and full_name cascade updates.
     pub async fn find_children(&self, parent_id: AccountId) -> Result<Vec<Account>, StorageError> {
