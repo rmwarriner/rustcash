@@ -16,7 +16,7 @@ canonical interface, and every surface (CLI, TUI, GUI) as a thin client over tha
 ### Design Goals
 
 - **Layered, dependency-clean crates**: core has no I/O; interfaces have no SQL
-- **API-first**: the HTTP API is how everything talks to the engine — GUIs, CLIs, scripts, and third-party tools
+- **API-first**: the HTTP API is the canonical interface for remote access, multi-user, and third-party tools; CLI and TUI access `engine` directly for single-user local use (no server required)
 - **Three first-class interfaces**: CLI, TUI, and GUI all ship; none is an afterthought
 - **WASM-sandboxed plugins**: reports and importers can be written in any language that compiles to WASM
 - **Opt-in business features**: invoicing, customers, vendors, payroll live in a separate crate and are not compiled in unless needed
@@ -109,12 +109,12 @@ pub struct Account {
 }
 
 /// GAAP-style lifecycle. Once Posted, a transaction is immutable.
-/// Corrections are made by voiding (which creates a reversing entry)
-/// and entering a new correcting transaction — never by editing in place.
+/// Corrections are made by voiding the original and entering a new
+/// correcting transaction — never by editing in place.
 pub enum TransactionStatus {
     Draft,   // freely editable, not included in balances
     Posted,  // immutable; included in all balance calculations
-    Void,    // removed from balances; reversing entry links back here
+    Void,    // excluded from balances; voiding_transaction_id links to replacement
 }
 
 pub struct Transaction {
@@ -125,7 +125,7 @@ pub struct Transaction {
     pub tags: Vec<String>,
     pub notes: Option<String>,
     pub status: TransactionStatus,
-    /// Set when status == Void. Points to the reversing transaction.
+    /// Set when status == Void. Optionally points to a replacement/correcting transaction.
     pub voiding_transaction_id: Option<TransactionId>,
     pub entered_at: DateTime<Utc>,
     pub modified_at: DateTime<Utc>,
@@ -172,7 +172,7 @@ pub struct Budget {
 - Account trees have no cycles
 - Amounts use `rust_decimal` — floats are never used, never accepted
 - A `Posted` transaction is structurally immutable — `core` enforces this at the type level
-- A `Void` transaction must have a corresponding reversing transaction (enforced in `engine`)
+- A `Void` transaction is excluded from all balance calculations; `voiding_transaction_id` optionally references a replacement entry
 
 ---
 
@@ -190,7 +190,7 @@ accounting correctness principle in the system.
 |----------|----------|--------------|-------|
 | `Draft`  | Yes      | No           | Pre-entry staging; freely editable |
 | `Posted` | No       | Yes          | Immutable; only voiding is permitted |
-| `Void`   | No       | No           | Kept forever; links to its reversing entry |
+| `Void`   | No       | No           | Kept forever; optionally links to a replacement entry |
 
 Soft-delete (`deleted_at`) applies only to non-financial records (accounts, commodities).
 **Transactions are never soft-deleted** — voiding is the only retirement path.
@@ -203,8 +203,8 @@ in plain verbs:
 
 | User action          | What the engine does (invisible to user)                          |
 |----------------------|-------------------------------------------------------------------|
-| Edit a transaction   | Void original + create reversing entry + post correcting entry    |
-| Delete a transaction | Void original + create reversing entry                            |
+| Edit a transaction   | Void original + post new correcting entry (linked via `voiding_transaction_id`) |
+| Delete a transaction | Void original (excluded from balances; record preserved)          |
 | Save a new entry     | Post the draft                                                    |
 
 Rules for all interfaces:
@@ -985,11 +985,12 @@ What does not migrate:
 
 ## Phased Development Plan
 
-### Phase 1 — Foundation (Milestone: `cargo test` passes, real data in SQLite)
-- [ ] Workspace scaffold with all crate stubs
-- [ ] `core`: all domain types, invariant validation
-- [ ] `storage`: SQLite backend, migrations, all repositories
-- [ ] `engine`: balance calculations, account tree aggregation
+### Phase 1 — Foundation *(complete)*
+- [x] Workspace scaffold with all crate stubs
+- [x] `core`: all domain types, invariant validation
+- [x] `storage`: SQLite backend, migrations, all repositories (Book, Commodity, Account, Transaction, Price) — 52 tests
+- [x] `engine`: `BalanceService`, `TransactionService`, `AccountService` — 24 tests
+- [x] ADRs 001–012 covering security, privacy, concurrency, observability, locale, backup
 - [ ] `import/csv`: basic CSV importer for real-world testing
 - [ ] `import/gnucash-xml`: GnuCash migration importer
 - [ ] Property-based tests for accounting invariants (splits sum to zero, balance consistency)
@@ -1031,11 +1032,13 @@ ADRs live in `docs/adr/`. Current decisions:
 |---|---|---|
 | 001 | Use `rust_decimal` not f64 | Financial arithmetic requires exact decimal representation |
 | 002 | SQLite as primary, PostgreSQL optional | Zero-config for personal use; same trait for team use |
-| 003 | API-first: all interfaces talk to `engine` or `api` | Prevents UI coupling to storage; enables third-party clients |
+| 003 | API-first: canonical interface for remote/multi-user; CLI/TUI access engine directly | Prevents UI coupling to storage; no server needed for single-user use |
 | 004 | WASM plugins via `wasmtime` | Language-agnostic, safe sandbox, no native code required |
-| 005 | Tauri for GUI over GTK/iced | Web-tech UI enables rich report rendering; smaller than Electron |
-| 006 | Soft deletes for financial records | Financial records must not disappear; audit trail required |
-| 007 | Typed ID newtypes over raw Uuid | Prevents passing AccountId where TransactionId expected |
-| 008 | `business` as opt-in crate | Personal finance users pay no complexity cost for business features |
-| 009 | `thiserror` in libs, `anyhow` in bins | Clean error types in library API; flexible handling in binaries |
-| 010 | Cursor-based pagination on list endpoints | Stable under concurrent inserts; works with large datasets |
+| 005 | Tauri for GUI | Web-tech UI enables rich report rendering; smaller than Electron |
+| 006 | TDD with `proptest` for invariants, real SQLite for repos | Mocks hide real DB bugs; property tests catch edge cases |
+| 007 | Security model: `UserId` reserved; auth opt-in; argon2id | Auth can be added without breaking the core model |
+| 008 | Privacy model: local-first, no telemetry, soft-delete books, export portability | User owns their data; GDPR-compatible by default |
+| 009 | Concurrency: SQLite WAL + busy_timeout; CLI accesses engine directly | No busy-wait; single-user needs no HTTP server |
+| 010 | Observability: structured logging (JSON/ANSI), RFC 7807 errors, correlation IDs | Machine-readable logs; standard error envelope |
+| 011 | Locale/display: locale-agnostic internally; format only at interface boundary | No hardcoded separators; i18n-ready |
+| 012 | Backup/integrity: `PRAGMA quick_check` on open; `integrity_check` on demand; hard stop on corruption | Detect corruption early; never silently corrupt data |

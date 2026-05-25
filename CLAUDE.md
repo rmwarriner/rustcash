@@ -5,7 +5,7 @@
 A ground-up Rust rewrite of GnuCash's *concepts*, not its code. Not a port — a modern
 financial data platform. See `DESIGN.md` for the full architecture.
 
-The GnuCash source is available at `/users/robert/projects/gnucash` for reference, but we
+The GnuCash source (https://github.com/Gnucash/gnucash) is a useful reference, but we
 are not porting it line-by-line. We are reimagining what it should be.
 
 ## Key Principles (don't violate these)
@@ -58,8 +58,13 @@ crates/
 
 ## Current Development Phase
 
-**Phase 1: Foundation**
-- Workspace scaffold → `core` → `storage` → `engine` → `import/csv` + `import/gnucash-xml`
+**Phase 1: Foundation — complete.** Domain model, all storage repositories (52 tests), and core engine services (24 tests) are implemented. ADRs 001–012 are in place.
+
+**Phase 2: CLI & API — next.**
+- `import/csv`: CSV importer for real-world data ingestion
+- Working account/transaction CRUD via CLI commands
+- Complete REST API with OpenAPI spec
+- Income Statement and Balance Sheet reports
 
 ## Dependency Direction
 
@@ -160,7 +165,7 @@ docs/adr-006
 
 ## GnuCash Reference
 
-GnuCash source at `/users/robert/projects/gnucash` is useful for:
+GnuCash source (https://github.com/Gnucash/gnucash) is useful for:
 - Understanding the account type taxonomy
 - OFX/QIF import logic reference
 - Report calculation reference (to verify our numbers match)
