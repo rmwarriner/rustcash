@@ -1,17 +1,24 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{BookId, CommodityId};
+use crate::ids::{BookId, CommodityId, UserId};
 
 /// Top-level container for all accounting data.
 /// Maps to a single SQLite file or a PostgreSQL schema.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Book {
-    pub id:                  BookId,
-    pub name:                String,
-    pub description:         Option<String>,
+    pub id:                   BookId,
+    pub name:                 String,
+    pub description:          Option<String>,
     /// Default reporting commodity (usually a currency like USD).
     pub default_commodity_id: CommodityId,
-    pub created_at:          DateTime<Utc>,
-    pub modified_at:         DateTime<Utc>,
+    /// No Posted entries are allowed on or before this date.
+    pub period_close_date:    Option<NaiveDate>,
+    /// None for local single-user installs; Some when auth is required (see ADR 007).
+    pub owner_id:             Option<UserId>,
+    pub created_at:           DateTime<Utc>,
+    pub modified_at:          DateTime<Utc>,
+    /// Soft-delete timestamp. None = active. Set to close or archive a book (see ADR 008).
+    /// Hard purge is a separate, explicit operation after the retention period expires.
+    pub deleted_at:           Option<DateTime<Utc>>,
 }

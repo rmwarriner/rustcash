@@ -40,6 +40,7 @@ macro_rules! id_newtype {
     };
 }
 
+id_newtype!(UserId,         "Identifies a user account (auth identity).");
 id_newtype!(BookId,        "Identifies a book (a single accounting database).");
 id_newtype!(AccountId,     "Identifies an account in the account tree.");
 id_newtype!(TransactionId, "Identifies a double-entry transaction.");

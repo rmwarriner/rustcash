@@ -14,7 +14,7 @@ pub mod prelude {
     pub use crate::commodity::{Commodity, Price, PriceSource};
     pub use crate::error::CoreError;
     pub use crate::ids::{
-        AccountId, BookId, BudgetId, CommodityId, LotId, PriceId, SplitId, TransactionId,
+        AccountId, BookId, BudgetId, CommodityId, LotId, PriceId, SplitId, TransactionId, UserId,
     };
     pub use crate::transaction::{ReconcileState, Split, Transaction};
 }

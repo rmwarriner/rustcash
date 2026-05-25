@@ -16,3 +16,7 @@ tokio            = { workspace = true }
 thiserror        = { workspace = true }
 anyhow           = { workspace = true }
 tracing          = { workspace = true }
+
+[dev-dependencies]
+sqlx     = { workspace = true }
+proptest = { workspace = true }
