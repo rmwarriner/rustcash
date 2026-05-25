@@ -3,7 +3,8 @@ use clap::{Parser, Subcommand};
 use rustcash_cli::{
     commands::{
         account::{
-            CreateAccountArgs, cmd_balance, cmd_create, cmd_delete, cmd_list, cmd_rename, cmd_show,
+            CreateAccountArgs, cmd_balance, cmd_create, cmd_delete, cmd_edit, cmd_list, cmd_rename,
+            cmd_show,
         },
         database::{cmd_backup, cmd_init, cmd_purge, cmd_seed, cmd_status},
     },
@@ -146,6 +147,29 @@ enum AccountCmd {
         #[arg(long)]
         hidden: bool,
     },
+    /// Edit account fields (description, placeholder, hidden)
+    Edit {
+        /// Account ID or full name (e.g. "Assets:Checking")
+        id: String,
+        /// Set or update the description
+        #[arg(long, short = 'd')]
+        description: Option<String>,
+        /// Clear the description
+        #[arg(long, conflicts_with = "description")]
+        clear_description: bool,
+        /// Mark as a placeholder account (container only, no direct transactions)
+        #[arg(long, conflicts_with = "no_placeholder")]
+        placeholder: bool,
+        /// Clear the placeholder flag
+        #[arg(long, conflicts_with = "placeholder")]
+        no_placeholder: bool,
+        /// Hide the account from normal views
+        #[arg(long, conflicts_with = "no_hidden")]
+        hidden: bool,
+        /// Unhide the account
+        #[arg(long, conflicts_with = "hidden")]
+        no_hidden: bool,
+    },
     /// Rename an account (cascades full_name to all descendants)
     Rename {
         /// Account ID
@@ -270,6 +294,36 @@ async fn main() -> Result<()> {
                         },
                     )
                     .await?;
+                }
+                AccountCmd::Edit {
+                    id,
+                    description,
+                    clear_description,
+                    placeholder,
+                    no_placeholder,
+                    hidden,
+                    no_hidden,
+                } => {
+                    let desc = if clear_description {
+                        Some(None)
+                    } else {
+                        description.as_deref().map(Some)
+                    };
+                    let ph = if placeholder {
+                        Some(true)
+                    } else if no_placeholder {
+                        Some(false)
+                    } else {
+                        None
+                    };
+                    let hid = if hidden {
+                        Some(true)
+                    } else if no_hidden {
+                        Some(false)
+                    } else {
+                        None
+                    };
+                    cmd_edit(&ctx.pool, ctx.book_id, &id, desc, ph, hid).await?;
                 }
                 AccountCmd::Rename { id, name } => {
                     cmd_rename(&ctx.pool, ctx.book_id, &id, &name).await?;

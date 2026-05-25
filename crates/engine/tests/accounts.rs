@@ -5,7 +5,10 @@ use rustcash_core::{
     account::{Account, AccountType},
     ids::AccountId,
 };
-use rustcash_engine::{EngineError, account::AccountService};
+use rustcash_engine::{
+    EngineError,
+    account::{AccountFieldUpdates, AccountService},
+};
 use rustcash_storage::{SqlitePool, repositories::accounts::AccountRepository};
 
 use helpers::*;
@@ -74,7 +77,8 @@ async fn create_with_invalid_parent_returns_error(pool: SqlitePool) {
 async fn rename_updates_name_and_full_name(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
-    let acct = insert_account(&pool, book.id, commodity.id, "Assets", AccountType::Asset).await;
+    let acct =
+        insert_account_full(&pool, book.id, commodity.id, "Assets", AccountType::Asset).await;
 
     AccountService::new(pool.clone())
         .rename(
@@ -110,15 +114,17 @@ async fn rename_cascades_full_name_to_children(pool: SqlitePool) {
     let repo = AccountRepository::new(pool.clone());
 
     // root → child → grandchild
-    let root = insert_account(&pool, book.id, commodity.id, "Assets", AccountType::Asset).await;
+    let root =
+        insert_account_full(&pool, book.id, commodity.id, "Assets", AccountType::Asset).await;
 
-    let mut child = insert_account(&pool, book.id, commodity.id, "Cash", AccountType::Cash).await;
+    let mut child =
+        insert_account_full(&pool, book.id, commodity.id, "Cash", AccountType::Cash).await;
     child.parent_id = Some(root.id);
     child.full_name = "Assets:Cash".to_string();
     repo.update(&child).await.unwrap();
 
     let mut grandchild =
-        insert_account(&pool, book.id, commodity.id, "Petty", AccountType::Cash).await;
+        insert_account_full(&pool, book.id, commodity.id, "Petty", AccountType::Cash).await;
     grandchild.parent_id = Some(child.id);
     grandchild.full_name = "Assets:Cash:Petty".to_string();
     repo.update(&grandchild).await.unwrap();
@@ -142,7 +148,8 @@ async fn rename_cascades_full_name_to_children(pool: SqlitePool) {
 async fn soft_delete_removes_from_active_accounts(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
-    let acct = insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let acct =
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
 
     AccountService::new(pool.clone())
         .soft_delete(acct.id)
@@ -163,4 +170,136 @@ async fn soft_delete_unknown_account_returns_error(pool: SqlitePool) {
         .await
         .unwrap_err();
     assert!(matches!(err, EngineError::Storage(_)));
+}
+
+// ── update_fields ─────────────────────────────────────────────────────────────
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn update_fields_sets_placeholder(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let acct = insert_account(&pool, book.id).await;
+
+    AccountService::new(pool.clone())
+        .update_fields(
+            acct.id,
+            AccountFieldUpdates {
+                placeholder: Some(true),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    let found = AccountRepository::new(pool)
+        .find_by_id(acct.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(found.placeholder);
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn update_fields_sets_hidden(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let acct = insert_account(&pool, book.id).await;
+
+    AccountService::new(pool.clone())
+        .update_fields(
+            acct.id,
+            AccountFieldUpdates {
+                hidden: Some(true),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    let found = AccountRepository::new(pool)
+        .find_by_id(acct.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(found.hidden);
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn update_fields_sets_description(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let acct = insert_account(&pool, book.id).await;
+
+    AccountService::new(pool.clone())
+        .update_fields(
+            acct.id,
+            AccountFieldUpdates {
+                description: Some(Some("my note".into())),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    let found = AccountRepository::new(pool)
+        .find_by_id(acct.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(found.description.as_deref(), Some("my note"));
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn update_fields_clears_description(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let mut acct = insert_account(&pool, book.id).await;
+    acct.description = Some("old note".into());
+    AccountRepository::new(pool.clone())
+        .update(&acct)
+        .await
+        .unwrap();
+
+    AccountService::new(pool.clone())
+        .update_fields(
+            acct.id,
+            AccountFieldUpdates {
+                description: Some(None),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    let found = AccountRepository::new(pool)
+        .find_by_id(acct.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(found.description.is_none());
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn update_fields_no_changes_is_noop(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let acct = insert_account(&pool, book.id).await;
+
+    AccountService::new(pool.clone())
+        .update_fields(acct.id, AccountFieldUpdates::default())
+        .await
+        .unwrap();
+
+    let found = AccountRepository::new(pool)
+        .find_by_id(acct.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(found.placeholder, acct.placeholder);
+    assert_eq!(found.hidden, acct.hidden);
+    assert_eq!(found.description, acct.description);
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn update_fields_unknown_account_errors(pool: SqlitePool) {
+    let err = AccountService::new(pool)
+        .update_fields(AccountId::new(), AccountFieldUpdates::default())
+        .await
+        .unwrap_err();
+    assert!(matches!(err, EngineError::AccountNotFound { .. }));
 }

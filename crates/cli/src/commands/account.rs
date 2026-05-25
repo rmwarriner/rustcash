@@ -5,7 +5,7 @@ use rustcash_core::{
     ids::{AccountId, BookId, CommodityId},
 };
 use rustcash_engine::{
-    account::AccountService,
+    account::{AccountFieldUpdates, AccountService},
     balance::{AccountBalance, BalanceService},
 };
 use rustcash_storage::{
@@ -158,6 +158,31 @@ pub async fn cmd_rename(
         .await?;
 
     println!("Renamed to {} ({})", new_full_name, account.id);
+    Ok(())
+}
+
+pub async fn cmd_edit(
+    pool: &SqlitePool,
+    book_id: BookId,
+    id_or_name: &str,
+    description: Option<Option<&str>>,
+    placeholder: Option<bool>,
+    hidden: Option<bool>,
+) -> anyhow::Result<()> {
+    let account = get_account(pool, id_or_name, book_id).await?;
+
+    AccountService::new(pool.clone())
+        .update_fields(
+            account.id,
+            AccountFieldUpdates {
+                description: description.map(|d| d.map(str::to_string)),
+                placeholder,
+                hidden,
+            },
+        )
+        .await?;
+
+    println!("Updated account {} ({})", account.full_name, account.id);
     Ok(())
 }
 

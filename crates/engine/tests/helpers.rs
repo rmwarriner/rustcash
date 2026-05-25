@@ -55,7 +55,13 @@ pub async fn insert_commodity(pool: &SqlitePool, book_id: BookId) -> Commodity {
     c
 }
 
-pub async fn insert_account(
+/// Convenience: create a commodity + account in one call (for tests that don't care which commodity).
+pub async fn insert_account(pool: &SqlitePool, book_id: BookId) -> Account {
+    let commodity = insert_commodity(pool, book_id).await;
+    insert_account_full(pool, book_id, commodity.id, "Checking", AccountType::Bank).await
+}
+
+pub async fn insert_account_full(
     pool: &SqlitePool,
     book_id: BookId,
     commodity_id: CommodityId,
