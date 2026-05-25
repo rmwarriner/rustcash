@@ -1,56 +1,75 @@
 "area:core":
-  - crates/core/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/core/**"
 
 "area:storage":
-  - crates/storage/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/storage/**"
 
 "area:engine":
-  - crates/engine/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/engine/**"
 
 "area:reports":
-  - crates/reports/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/reports/**"
 
 "area:import":
-  - crates/import/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/import/**"
 
 "area:export":
-  - crates/export/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/export/**"
 
 "area:api":
-  - crates/api/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/api/**"
 
 "area:plugin":
-  - crates/plugin/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/plugin/**"
 
 "area:cli":
-  - crates/cli/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/cli/**"
 
 "area:tui":
-  - crates/tui/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/tui/**"
 
 "area:gui":
-  - crates/gui/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/gui/**"
 
 "area:business":
-  - crates/business/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/business/**"
 
 "area:sync":
-  - crates/sync/**
+  - changed-files:
+    - any-glob-to-any-file: "crates/sync/**"
 
 "area:ci":
-  - .github/workflows/**
-  - .github/labeler.yml
-  - justfile
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".github/workflows/**"
+      - ".github/labeler.yml"
+      - "justfile"
 
 "area:docs":
-  - "*.md"
-  - docs/**
-  - .github/PULL_REQUEST_TEMPLATE.md
-  - .github/ISSUE_TEMPLATE/**
+  - changed-files:
+    - any-glob-to-any-file:
+      - "*.md"
+      - "docs/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - ".github/ISSUE_TEMPLATE/**"
 
 "area:tooling":
-  - .pre-commit-config.yaml
-  - .editorconfig
-  - rustfmt.toml
-  - Cargo.toml
-  - Cargo.lock
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".pre-commit-config.yaml"
+      - ".editorconfig"
+      - "rustfmt.toml"
+      - "Cargo.toml"
+      - "Cargo.lock"
