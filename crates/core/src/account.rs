@@ -84,6 +84,7 @@ pub struct Account {
     pub sort_order:   i32,
     pub created_at:   DateTime<Utc>,
     pub modified_at:  DateTime<Utc>,
+    pub deleted_at:   Option<DateTime<Utc>>,
 }
 
 impl Account {

@@ -1,4 +1,4 @@
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
@@ -7,17 +7,18 @@ use crate::ids::{BookId, CommodityId, PriceId};
 /// A currency, stock, fund, or other tradable unit of value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Commodity {
-    pub id:        CommodityId,
-    pub book_id:   BookId,
+    pub id:         CommodityId,
+    pub book_id:    BookId,
     /// Grouping namespace: `"CURRENCY"`, `"NYSE"`, `"FUND"`, `"CRYPTO"`, etc.
-    pub namespace: String,
+    pub namespace:  String,
     /// Ticker or ISO code: `"USD"`, `"AAPL"`, `"BTC"`, etc.
-    pub mnemonic:  String,
-    pub name:      String,
+    pub mnemonic:   String,
+    pub name:       String,
     /// Denominator of the smallest representable unit.
     /// 100 = cents (USD), 1000 = mils, 1 = whole units.
-    pub fraction:  u32,
-    pub notes:     Option<String>,
+    pub fraction:   u32,
+    pub notes:      Option<String>,
+    pub created_at: DateTime<Utc>,
 }
 
 impl Commodity {
@@ -47,4 +48,5 @@ pub struct Price {
     pub date:         NaiveDate,
     pub value:        Decimal,
     pub source:       PriceSource,
+    pub created_at:   DateTime<Utc>,
 }
