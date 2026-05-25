@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::ids::{BookId, CommodityId, UserId};
@@ -12,6 +12,8 @@ pub struct Book {
     pub description:          Option<String>,
     /// Default reporting commodity (usually a currency like USD).
     pub default_commodity_id: CommodityId,
+    /// No Posted entries are allowed on or before this date.
+    pub period_close_date:    Option<NaiveDate>,
     /// None for local single-user installs; Some when auth is required (see ADR 007).
     pub owner_id:             Option<UserId>,
     pub created_at:           DateTime<Utc>,

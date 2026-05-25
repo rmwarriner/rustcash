@@ -2,6 +2,7 @@
 //!
 //! All SQL runs through `sqlx`; migrations live in `migrations/`.
 
+pub mod convert;
 pub mod db;
 pub mod error;
 pub mod repositories;
