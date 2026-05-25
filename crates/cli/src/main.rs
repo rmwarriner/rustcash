@@ -2,7 +2,9 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use rustcash_cli::{
     commands::{
-        account::{cmd_balance, cmd_list, cmd_show},
+        account::{
+            CreateAccountArgs, cmd_balance, cmd_create, cmd_delete, cmd_list, cmd_rename, cmd_show,
+        },
         database::{cmd_backup, cmd_init, cmd_purge, cmd_seed, cmd_status},
     },
     context::{Ctx, default_db_path},
@@ -119,6 +121,43 @@ enum AccountCmd {
         #[arg(long)]
         as_of: Option<String>,
     },
+    /// Create a new account
+    Create {
+        /// Account name
+        name: String,
+        /// Account type (asset, cash, bank, credit_card, investment, mutual_fund,
+        ///   liability, long_term_liability, equity, opening_balance, retained_earnings,
+        ///   income, expense, receivable, payable)
+        #[arg(long, short = 't')]
+        r#type: String,
+        /// Parent account ID (omit for a root account)
+        #[arg(long, short = 'p')]
+        parent: Option<String>,
+        /// Commodity/currency ID (defaults to the book's default currency)
+        #[arg(long, short = 'c')]
+        currency: Option<String>,
+        /// Optional description
+        #[arg(long, short = 'd')]
+        description: Option<String>,
+        /// Mark account as a placeholder (container only, no direct transactions)
+        #[arg(long)]
+        placeholder: bool,
+        /// Hide account from normal views
+        #[arg(long)]
+        hidden: bool,
+    },
+    /// Rename an account (cascades full_name to all descendants)
+    Rename {
+        /// Account ID
+        id: String,
+        /// New name
+        name: String,
+    },
+    /// Soft-delete an account
+    Delete {
+        /// Account ID
+        id: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -207,6 +246,36 @@ async fn main() -> Result<()> {
                 }
                 AccountCmd::Balance { id, as_of } => {
                     cmd_balance(&ctx.pool, &id, ctx.book_id, as_of.as_deref()).await?;
+                }
+                AccountCmd::Create {
+                    name,
+                    r#type,
+                    parent,
+                    currency,
+                    description,
+                    placeholder,
+                    hidden,
+                } => {
+                    cmd_create(
+                        &ctx.pool,
+                        ctx.book_id,
+                        CreateAccountArgs {
+                            name: &name,
+                            type_str: &r#type,
+                            parent_id: parent.as_deref(),
+                            commodity_id: currency.as_deref(),
+                            description: description.as_deref(),
+                            placeholder,
+                            hidden,
+                        },
+                    )
+                    .await?;
+                }
+                AccountCmd::Rename { id, name } => {
+                    cmd_rename(&ctx.pool, &id, &name).await?;
+                }
+                AccountCmd::Delete { id } => {
+                    cmd_delete(&ctx.pool, &id).await?;
                 }
             }
         }

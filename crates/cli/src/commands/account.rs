@@ -1,11 +1,17 @@
 use anyhow::Context as _;
-use chrono::{Local, NaiveDate};
+use chrono::{Local, NaiveDate, Utc};
 use rustcash_core::{
     account::{Account, AccountType},
-    ids::{AccountId, BookId},
+    ids::{AccountId, BookId, CommodityId},
 };
-use rustcash_engine::balance::{AccountBalance, BalanceService};
-use rustcash_storage::{SqlitePool, repositories::accounts::AccountRepository};
+use rustcash_engine::{
+    account::AccountService,
+    balance::{AccountBalance, BalanceService},
+};
+use rustcash_storage::{
+    SqlitePool,
+    repositories::{accounts::AccountRepository, books::BookRepository},
+};
 use serde_json;
 
 // ── data fetchers ─────────────────────────────────────────────────────────────
@@ -40,6 +46,142 @@ pub async fn get_account_balance(
     Ok(BalanceService::new(pool.clone())
         .account_balance(account_id, book_id, as_of)
         .await?)
+}
+
+// ── account type parsing ──────────────────────────────────────────────────────
+
+/// Parse a snake_case account type string (e.g. `"credit_card"`) into `AccountType`.
+pub fn parse_account_type(s: &str) -> anyhow::Result<AccountType> {
+    serde_json::from_value(serde_json::Value::String(s.to_string()))
+        .with_context(|| format!("unknown account type '{s}'; valid types: asset, cash, bank, credit_card, investment, mutual_fund, liability, long_term_liability, equity, opening_balance, retained_earnings, income, expense, receivable, payable"))
+}
+
+// ── write operations ──────────────────────────────────────────────────────────
+
+pub struct CreateAccountArgs<'a> {
+    pub name: &'a str,
+    pub type_str: &'a str,
+    pub parent_id: Option<&'a str>,
+    pub commodity_id: Option<&'a str>,
+    pub description: Option<&'a str>,
+    pub placeholder: bool,
+    pub hidden: bool,
+}
+
+pub async fn cmd_create(
+    pool: &SqlitePool,
+    book_id: BookId,
+    args: CreateAccountArgs<'_>,
+) -> anyhow::Result<()> {
+    let CreateAccountArgs {
+        name,
+        type_str,
+        parent_id,
+        commodity_id,
+        description,
+        placeholder,
+        hidden,
+    } = args;
+    let account_type = parse_account_type(type_str)?;
+
+    let parent_id = parent_id
+        .map(|s| {
+            s.parse::<uuid::Uuid>()
+                .with_context(|| format!("invalid parent ID: {s}"))
+                .map(AccountId::from)
+        })
+        .transpose()?;
+
+    // Resolve commodity: use supplied ID or fall back to book default.
+    let commodity_id = if let Some(s) = commodity_id {
+        CommodityId::from(
+            s.parse::<uuid::Uuid>()
+                .with_context(|| format!("invalid commodity ID: {s}"))?,
+        )
+    } else {
+        BookRepository::new(pool.clone())
+            .find_by_id(book_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("book {book_id} not found"))?
+            .default_commodity_id
+    };
+
+    // Build full_name from parent if present.
+    let full_name = if let Some(pid) = parent_id {
+        let parent = AccountRepository::new(pool.clone())
+            .find_by_id(pid)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("parent account {pid} not found"))?;
+        format!("{}:{}", parent.full_name, name)
+    } else {
+        name.to_string()
+    };
+
+    let account = Account {
+        id: AccountId::new(),
+        book_id,
+        parent_id,
+        name: name.to_string(),
+        full_name,
+        account_type,
+        commodity_id,
+        description: description.map(str::to_string),
+        placeholder,
+        hidden,
+        sort_order: 0,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
+    };
+
+    AccountService::new(pool.clone()).create(&account).await?;
+
+    println!("Created account {} ({})", account.full_name, account.id);
+    Ok(())
+}
+
+pub async fn cmd_rename(pool: &SqlitePool, id_str: &str, name: &str) -> anyhow::Result<()> {
+    let uuid = id_str
+        .parse::<uuid::Uuid>()
+        .with_context(|| format!("invalid account ID: {id_str}"))?;
+    let account_id = AccountId::from(uuid);
+
+    // Compute new full_name by re-using the existing parent prefix.
+    let account = AccountRepository::new(pool.clone())
+        .find_by_id(account_id)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("account {id_str} not found"))?;
+
+    let new_full_name = if let Some(pid) = account.parent_id {
+        let parent = AccountRepository::new(pool.clone())
+            .find_by_id(pid)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("parent account not found"))?;
+        format!("{}:{}", parent.full_name, name)
+    } else {
+        name.to_string()
+    };
+
+    AccountService::new(pool.clone())
+        .rename(account_id, name.to_string(), new_full_name.clone())
+        .await?;
+
+    println!("Renamed to {} ({})", new_full_name, id_str);
+    Ok(())
+}
+
+pub async fn cmd_delete(pool: &SqlitePool, id_str: &str) -> anyhow::Result<()> {
+    let uuid = id_str
+        .parse::<uuid::Uuid>()
+        .with_context(|| format!("invalid account ID: {id_str}"))?;
+    let account_id = AccountId::from(uuid);
+
+    AccountService::new(pool.clone())
+        .soft_delete(account_id)
+        .await?;
+
+    println!("Deleted account {id_str}");
+    Ok(())
 }
 
 // ── formatters ────────────────────────────────────────────────────────────────
