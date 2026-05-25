@@ -22,29 +22,34 @@ pub async fn list_accounts(pool: &SqlitePool, book_id: BookId) -> anyhow::Result
         .await?)
 }
 
-pub async fn get_account(pool: &SqlitePool, id_str: &str) -> anyhow::Result<Account> {
-    let uuid = id_str
-        .parse::<uuid::Uuid>()
-        .with_context(|| format!("invalid account ID: {id_str}"))?;
-    let account_id = AccountId::from(uuid);
+/// Resolve an account by UUID string or full hierarchical name (e.g. `"Assets:Checking"`).
+/// UUID is tried first; if the string doesn't parse as one it is treated as a full_name.
+pub async fn get_account(
+    pool: &SqlitePool,
+    id_or_name: &str,
+    book_id: BookId,
+) -> anyhow::Result<Account> {
+    if let Ok(uuid) = id_or_name.parse::<uuid::Uuid>() {
+        return AccountRepository::new(pool.clone())
+            .find_by_id(AccountId::from(uuid))
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("account '{id_or_name}' not found"));
+    }
     AccountRepository::new(pool.clone())
-        .find_by_id(account_id)
+        .find_by_full_name(book_id, id_or_name)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("account {id_str} not found"))
+        .ok_or_else(|| anyhow::anyhow!("account '{id_or_name}' not found"))
 }
 
 pub async fn get_account_balance(
     pool: &SqlitePool,
-    id_str: &str,
+    id_or_name: &str,
     book_id: BookId,
     as_of: NaiveDate,
 ) -> anyhow::Result<AccountBalance> {
-    let uuid = id_str
-        .parse::<uuid::Uuid>()
-        .with_context(|| format!("invalid account ID: {id_str}"))?;
-    let account_id = AccountId::from(uuid);
+    let account = get_account(pool, id_or_name, book_id).await?;
     Ok(BalanceService::new(pool.clone())
-        .account_balance(account_id, book_id, as_of)
+        .account_balance(account.id, book_id, as_of)
         .await?)
 }
 
@@ -84,14 +89,6 @@ pub async fn cmd_create(
     } = args;
     let account_type = parse_account_type(type_str)?;
 
-    let parent_id = parent_id
-        .map(|s| {
-            s.parse::<uuid::Uuid>()
-                .with_context(|| format!("invalid parent ID: {s}"))
-                .map(AccountId::from)
-        })
-        .transpose()?;
-
     // Resolve commodity: use supplied ID or fall back to book default.
     let commodity_id = if let Some(s) = commodity_id {
         CommodityId::from(
@@ -106,15 +103,13 @@ pub async fn cmd_create(
             .default_commodity_id
     };
 
-    // Build full_name from parent if present.
-    let full_name = if let Some(pid) = parent_id {
-        let parent = AccountRepository::new(pool.clone())
-            .find_by_id(pid)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("parent account {pid} not found"))?;
-        format!("{}:{}", parent.full_name, name)
+    // Resolve optional parent by UUID or full_name; build child's full_name.
+    let (parent_id, full_name) = if let Some(p) = parent_id {
+        let parent = get_account(pool, p, book_id).await?;
+        let full = format!("{}:{}", parent.full_name, name);
+        (Some(parent.id), full)
     } else {
-        name.to_string()
+        (None, name.to_string())
     };
 
     let account = Account {
@@ -140,17 +135,13 @@ pub async fn cmd_create(
     Ok(())
 }
 
-pub async fn cmd_rename(pool: &SqlitePool, id_str: &str, name: &str) -> anyhow::Result<()> {
-    let uuid = id_str
-        .parse::<uuid::Uuid>()
-        .with_context(|| format!("invalid account ID: {id_str}"))?;
-    let account_id = AccountId::from(uuid);
-
-    // Compute new full_name by re-using the existing parent prefix.
-    let account = AccountRepository::new(pool.clone())
-        .find_by_id(account_id)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("account {id_str} not found"))?;
+pub async fn cmd_rename(
+    pool: &SqlitePool,
+    book_id: BookId,
+    id_or_name: &str,
+    name: &str,
+) -> anyhow::Result<()> {
+    let account = get_account(pool, id_or_name, book_id).await?;
 
     let new_full_name = if let Some(pid) = account.parent_id {
         let parent = AccountRepository::new(pool.clone())
@@ -163,24 +154,25 @@ pub async fn cmd_rename(pool: &SqlitePool, id_str: &str, name: &str) -> anyhow::
     };
 
     AccountService::new(pool.clone())
-        .rename(account_id, name.to_string(), new_full_name.clone())
+        .rename(account.id, name.to_string(), new_full_name.clone())
         .await?;
 
-    println!("Renamed to {} ({})", new_full_name, id_str);
+    println!("Renamed to {} ({})", new_full_name, account.id);
     Ok(())
 }
 
-pub async fn cmd_delete(pool: &SqlitePool, id_str: &str) -> anyhow::Result<()> {
-    let uuid = id_str
-        .parse::<uuid::Uuid>()
-        .with_context(|| format!("invalid account ID: {id_str}"))?;
-    let account_id = AccountId::from(uuid);
+pub async fn cmd_delete(
+    pool: &SqlitePool,
+    book_id: BookId,
+    id_or_name: &str,
+) -> anyhow::Result<()> {
+    let account = get_account(pool, id_or_name, book_id).await?;
 
     AccountService::new(pool.clone())
-        .soft_delete(account_id)
+        .soft_delete(account.id)
         .await?;
 
-    println!("Deleted account {id_str}");
+    println!("Deleted account {} ({})", account.full_name, account.id);
     Ok(())
 }
 
@@ -278,8 +270,8 @@ pub async fn cmd_list(pool: &SqlitePool, book_id: BookId, format: &str) -> anyho
     Ok(())
 }
 
-pub async fn cmd_show(pool: &SqlitePool, id: &str) -> anyhow::Result<()> {
-    let account = get_account(pool, id).await?;
+pub async fn cmd_show(pool: &SqlitePool, book_id: BookId, id_or_name: &str) -> anyhow::Result<()> {
+    let account = get_account(pool, id_or_name, book_id).await?;
     print!("{}", render_detail(&account));
     Ok(())
 }
@@ -295,7 +287,7 @@ pub async fn cmd_balance(
             .with_context(|| format!("invalid date '{s}': expected YYYY-MM-DD"))?,
         None => Local::now().date_naive(),
     };
-    let account = get_account(pool, id).await?;
+    let account = get_account(pool, id, book_id).await?;
     let balance = get_account_balance(pool, id, book_id, as_of).await?;
     print!("{}", render_balance(&account, &balance));
     Ok(())
