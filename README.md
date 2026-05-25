@@ -2,7 +2,7 @@
 
 A modern, modular accounting platform in Rust — inspired by GnuCash, built for the next 25 years.
 
-> **Status**: Early development. The workspace scaffold, domain model, and architecture are in place. Storage repositories and the first working CLI commands are next.
+> **Status**: Phase 1 foundation complete. Domain model, all storage repositories (SQLite), and core engine services (balances, transaction lifecycle, account management) are implemented and fully tested. Next: CSV importer and working CLI/API commands.
 
 ---
 
@@ -52,7 +52,7 @@ See [`DESIGN.md`](DESIGN.md) for the full architecture, data model, API design, 
 |---|---|---|
 | Money arithmetic | `rust_decimal` | Exact decimal — floats are not acceptable for financial data |
 | Primary database | SQLite via `sqlx` | Zero-config file-based database; PostgreSQL available for teams |
-| Interface model | API-first | All UIs are clients; third-party tools integrate for free |
+| Interface model | API-first | All UIs are clients; CLI and TUI also access `engine` directly (no server needed) |
 | Plugin sandbox | `wasmtime` WASM | Any language, no native code, safe to install from the community |
 | Desktop GUI | Tauri | Web-tech UI + Rust backend; HTML reports render natively |
 | Business features | Separate opt-in crate | Personal users compile none of it |
@@ -89,6 +89,8 @@ cargo check --workspace
 cargo run -p rustcash-cli -- --help
 ```
 
+The CLI accesses the `engine` and storage layers directly — no API server is required for single-user local use.
+
 ### Run the API server (placeholder)
 
 ```bash
@@ -97,23 +99,26 @@ cargo run -p rustcash-api
 curl http://127.0.0.1:8080/v1/health
 ```
 
+The API server is only needed when you want remote access, multiple users, or third-party integrations.
+
 ---
 
 ## Roadmap
 
-### Phase 1 — Foundation *(in progress)*
+### Phase 1 — Foundation *(complete)*
 - [x] Workspace scaffold and domain model (`core`)
 - [x] SQL migration schema (`storage`)
-- [x] Balance computation logic (`engine`)
+- [x] Storage repositories: Book, Commodity, Account, Transaction, Price (52 tests)
+- [x] Engine services: `BalanceService`, `TransactionService`, `AccountService` (24 tests)
 - [x] Report, Importer, and Exporter traits defined
 - [x] axum API skeleton with `/v1/health`
 - [x] Full clap CLI command tree
-- [ ] Storage repository implementations (SQLite)
-- [ ] `cargo test` with real in-memory SQLite
+- [x] ADRs 001–012 covering all major architectural decisions
 - [ ] CSV importer
 - [ ] GnuCash XML importer (migration path)
 
-### Phase 2 — CLI & API
+### Phase 2 — CLI & API *(next)*
+- [ ] CSV importer (real-world data in SQLite)
 - [ ] Working account and transaction CRUD via CLI
 - [ ] Complete REST API with OpenAPI spec
 - [ ] Income Statement and Balance Sheet reports
@@ -161,4 +166,4 @@ Issues and discussion are welcome.
 
 ## License
 
-GPL-3.0-or-later — the same license as GnuCash.
+AGPL-3.0-or-later. The GNU Affero GPL was chosen over GPL because it closes the "network use" loophole: anyone deploying RustCash as a service must share their modifications.
