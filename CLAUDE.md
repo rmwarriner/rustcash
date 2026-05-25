@@ -109,7 +109,11 @@ CI runs on every push and PR via `.github/workflows/ci.yml`:
 - **audit**: `cargo audit` (conditional on dep changes)
 - **all-checks-passed**: aggregate gate required by branch protection
 
+**`labeler.yml`** auto-applies `area:<package>` and `area:{ci,docs,tooling}` labels to PRs based on changed paths. Path mapping in `.github/labeler.yml` mirrors the `changes` job's filters.
+
 Watch CI with the Monitor tool, not a Bash polling loop.
+
+When editing any `.github/workflows/*.yml`, the security pre-commit hook fires informationally. Don't reference untrusted PR-controlled context (`github.event.issue.title`, `github.event.pull_request.body`, etc.) inside `run:` blocks; bind them through `env:` variables when needed.
 
 ### Commit messages
 
@@ -141,6 +145,21 @@ docs/adr-006
 - Delete branch after merging
 - Use the PR template (`.github/PULL_REQUEST_TEMPLATE.md`)
 - Smoke test block in the PR body must be fully reproducible
+
+### After opening a PR
+
+Watch CI with the **`Monitor`** tool, not `Bash run_in_background` — Monitor emits one event per check transition; bash watch goes silent until the very end. The poll script in [`feedback_auto_pr_workflow.md` user memory](../../.claude/projects/-Users-robert-Projects-rustcash/memory/feedback_auto_pr_workflow.md) is the canonical shape.
+
+When the Monitor reports `ALL_GREEN`, squash-merge with `gh pr merge <N> --squash --delete-branch`, sync `main` locally (`git checkout main && git pull --ff-only && git branch -D <branch>`), then surface the next slice.
+
+**Do not** enable repo-level auto-merge or pass `--auto` to `gh pr merge`. Past experience is that auto-merge fired before required checks gated the merge — a manual squash-merge from this side after `ALL_GREEN` is the safer pattern.
+
+## What goes where
+
+- **Bugs and ideas**: GitHub Issues on `rmwarriner/tulip-accounting`. Don't invent parallel TODO files in the repo. The repo has issue templates (`.github/ISSUE_TEMPLATE/{bug,feature}.yml`) for human use; when filing programmatically, follow the same body shape (Why / Scope / Out of scope / Acceptance) recent issues use.
+- **Vulnerability reports**: private security advisory per [`SECURITY.md`](SECURITY.md), not a regular issue. The engineering threat model lives separately in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
+- **Architectural decisions** (new dependency, deviation from established pattern, design tradeoff): an ADR in [`docs/adrs/`](docs/adrs). Look at existing ones for the format.
+- **Phase tracking**: update [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) at the end of a slice — it's the source of truth for project state.
 
 ## Testing Approach
 
@@ -179,3 +198,7 @@ Do NOT copy C code patterns. Refer to logic only.
 - No `unwrap()` or `expect()` outside of tests and `main()`
 - No PRs without tests
 - No `unsafe` blocks
+
+## When in doubt
+
+Open an issue and discuss before writing code, especially for anything beyond a small bugfix or doc edit. The maintainer is solo and prefers a five-minute conversation to a 200-line PR that has to be unwound.
