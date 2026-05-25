@@ -73,7 +73,7 @@ ratatui   = "0.29"
 crossterm = "0.28"
 
 # ── WASM plugin host ──────────────────────────────────────────────────────────
-wasmtime = { version = "26", default-features = false, features = ["cranelift", "runtime"] }
+wasmtime = { version = "43", default-features = false, features = ["cranelift", "runtime"] }
 
 # ── Error handling ────────────────────────────────────────────────────────────
 thiserror = "2"
