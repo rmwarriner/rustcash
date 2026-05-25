@@ -232,7 +232,13 @@ async fn get_account_finds_root_by_name(pool: SqlitePool) {
     let commodity = insert_commodity(&pool, book.id).await;
     let repo = AccountRepository::new(pool.clone());
 
-    let acct = make_account(book.id, commodity.id, "Assets", "Assets", AccountType::Asset);
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Assets",
+        "Assets",
+        AccountType::Asset,
+    );
     repo.insert(&acct).await.unwrap();
 
     let found = get_account(&pool, "Assets", book.id).await.unwrap();
@@ -595,7 +601,9 @@ async fn delete_soft_deletes_account(pool: SqlitePool) {
     );
     repo.insert(&acct).await.unwrap();
 
-    cmd_delete(&pool, book.id, &acct.id.to_string()).await.unwrap();
+    cmd_delete(&pool, book.id, &acct.id.to_string())
+        .await
+        .unwrap();
 
     // soft-deleted account no longer appears in the active list
     let active = list_accounts(&pool, book.id).await.unwrap();
