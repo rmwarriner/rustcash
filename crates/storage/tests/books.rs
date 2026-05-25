@@ -3,19 +3,19 @@ use rustcash_core::{
     book::Book,
     ids::{BookId, CommodityId},
 };
-use rustcash_storage::{repositories::books::BookRepository, SqlitePool, StorageError};
+use rustcash_storage::{SqlitePool, StorageError, repositories::books::BookRepository};
 
 fn make_book() -> Book {
     Book {
-        id:                   BookId::new(),
-        name:                 "Test Book".to_string(),
-        description:          None,
+        id: BookId::new(),
+        name: "Test Book".to_string(),
+        description: None,
         default_commodity_id: CommodityId::new(),
-        period_close_date:    None,
-        owner_id:             None,
-        created_at:           Utc::now(),
-        modified_at:          Utc::now(),
-        deleted_at:           None,
+        period_close_date: None,
+        owner_id: None,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     }
 }
 
@@ -40,27 +40,27 @@ async fn round_trip_preserves_all_fields(pool: SqlitePool) {
     let repo = BookRepository::new(pool);
     let now = Utc::now();
     let book = Book {
-        id:                   BookId::new(),
-        name:                 "My Finances".to_string(),
-        description:          Some("Personal accounts".to_string()),
+        id: BookId::new(),
+        name: "My Finances".to_string(),
+        description: Some("Personal accounts".to_string()),
         default_commodity_id: CommodityId::new(),
-        period_close_date:    Some(NaiveDate::from_ymd_opt(2025, 6, 30).unwrap()),
-        owner_id:             None,
-        created_at:           now,
-        modified_at:          now,
-        deleted_at:           None,
+        period_close_date: Some(NaiveDate::from_ymd_opt(2025, 6, 30).unwrap()),
+        owner_id: None,
+        created_at: now,
+        modified_at: now,
+        deleted_at: None,
     };
     repo.insert(&book).await.unwrap();
     let found = repo.find_by_id(book.id).await.unwrap().unwrap();
-    assert_eq!(found.id,                   book.id);
-    assert_eq!(found.name,                 book.name);
-    assert_eq!(found.description,          book.description);
+    assert_eq!(found.id, book.id);
+    assert_eq!(found.name, book.name);
+    assert_eq!(found.description, book.description);
     assert_eq!(found.default_commodity_id, book.default_commodity_id);
-    assert_eq!(found.period_close_date,    book.period_close_date);
-    assert_eq!(found.owner_id,             book.owner_id);
-    assert_eq!(found.created_at,           book.created_at);
-    assert_eq!(found.modified_at,          book.modified_at);
-    assert_eq!(found.deleted_at,           book.deleted_at);
+    assert_eq!(found.period_close_date, book.period_close_date);
+    assert_eq!(found.owner_id, book.owner_id);
+    assert_eq!(found.created_at, book.created_at);
+    assert_eq!(found.modified_at, book.modified_at);
+    assert_eq!(found.deleted_at, book.deleted_at);
 }
 
 #[sqlx::test]
@@ -93,6 +93,9 @@ async fn update_changes_fields(pool: SqlitePool) {
 #[sqlx::test]
 async fn soft_delete_unknown_id_is_not_found(pool: SqlitePool) {
     let repo = BookRepository::new(pool);
-    let err = repo.soft_delete(BookId::new(), Utc::now()).await.unwrap_err();
+    let err = repo
+        .soft_delete(BookId::new(), Utc::now())
+        .await
+        .unwrap_err();
     assert!(matches!(err, StorageError::NotFound { .. }));
 }

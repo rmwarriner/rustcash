@@ -5,11 +5,15 @@ use rustcash_cli::{
         account::{cmd_balance, cmd_list, cmd_show},
         database::{cmd_backup, cmd_init, cmd_purge, cmd_seed, cmd_status},
     },
-    context::{default_db_path, Ctx},
+    context::{Ctx, default_db_path},
 };
 
 #[derive(Parser)]
-#[command(name = "rustcash", about = "Modern accounting from the command line", version)]
+#[command(
+    name = "rustcash",
+    about = "Modern accounting from the command line",
+    version
+)]
 struct Cli {
     /// SQLite database file (env: RUSTCASH_DB)
     #[arg(long, short = 'f', env = "RUSTCASH_DB", global = true)]
@@ -167,7 +171,11 @@ async fn main() -> Result<()> {
         Commands::Database { cmd } => {
             // Database commands act on the file directly — no Ctx needed.
             match cmd {
-                DatabaseCmd::Init { name, currency, force } => {
+                DatabaseCmd::Init {
+                    name,
+                    currency,
+                    force,
+                } => {
                     cmd_init(&db_path, &name, &currency, force).await?;
                 }
                 DatabaseCmd::Status => {
@@ -179,7 +187,10 @@ async fn main() -> Result<()> {
                 DatabaseCmd::Seed { template } => {
                     cmd_seed(&db_path, cli.book.as_deref(), &template).await?;
                 }
-                DatabaseCmd::Purge { older_than, dry_run } => {
+                DatabaseCmd::Purge {
+                    older_than,
+                    dry_run,
+                } => {
                     cmd_purge(&db_path, older_than, dry_run).await?;
                 }
             }
@@ -204,8 +215,15 @@ async fn main() -> Result<()> {
             println!("Starting API server on {bind} — not yet implemented");
         }
         Commands::Transaction { cmd } => match cmd {
-            TransactionCmd::List { account, from, to, format } => {
-                println!("transaction list account={account:?} from={from:?} to={to:?} format={format} — not yet implemented")
+            TransactionCmd::List {
+                account,
+                from,
+                to,
+                format,
+            } => {
+                println!(
+                    "transaction list account={account:?} from={from:?} to={to:?} format={format} — not yet implemented"
+                )
             }
             TransactionCmd::Show { id } => println!("transaction show {id} — not yet implemented"),
         },
@@ -214,8 +232,15 @@ async fn main() -> Result<()> {
         }
         Commands::Report { cmd } => match cmd {
             ReportCmd::List => println!("report list — not yet implemented"),
-            ReportCmd::Render { id, from, to, format } => {
-                println!("report render {id} from={from:?} to={to:?} format={format} — not yet implemented")
+            ReportCmd::Render {
+                id,
+                from,
+                to,
+                format,
+            } => {
+                println!(
+                    "report render {id} from={from:?} to={to:?} format={format} — not yet implemented"
+                )
             }
         },
     }

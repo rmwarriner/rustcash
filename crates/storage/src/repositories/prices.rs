@@ -6,44 +6,46 @@ use rustcash_core::{
 use sqlx::FromRow;
 
 use crate::{
+    SqlitePool, StorageError,
     convert::{
         date_from_str, datetime_from_str, decimal_from_str, enum_from_str, enum_to_str,
         uuid_from_str,
     },
-    SqlitePool, StorageError,
 };
 
 // ── row type ──────────────────────────────────────────────────────────────────
 
 #[derive(FromRow)]
 struct PriceRow {
-    id:           String,
-    book_id:      String,
+    id: String,
+    book_id: String,
     commodity_id: String,
-    currency_id:  String,
-    date:         String,
-    value:        String,
-    source:       String,
-    created_at:   String,
+    currency_id: String,
+    date: String,
+    value: String,
+    source: String,
+    created_at: String,
 }
 
 impl PriceRow {
     fn into_price(self) -> Result<Price, StorageError> {
         Ok(Price {
-            id:           PriceId::from(uuid_from_str(&self.id, "prices.id")?),
-            book_id:      BookId::from(uuid_from_str(&self.book_id, "prices.book_id")?),
-            commodity_id: CommodityId::from(uuid_from_str(&self.commodity_id, "prices.commodity_id")?),
-            currency_id:  CommodityId::from(uuid_from_str(&self.currency_id, "prices.currency_id")?),
-            date:         date_from_str(&self.date, "prices.date")?,
-            value:        decimal_from_str(&self.value, "prices.value")?,
-            source:       enum_from_str(&self.source, "prices.source")?,
-            created_at:   datetime_from_str(&self.created_at, "prices.created_at")?,
+            id: PriceId::from(uuid_from_str(&self.id, "prices.id")?),
+            book_id: BookId::from(uuid_from_str(&self.book_id, "prices.book_id")?),
+            commodity_id: CommodityId::from(uuid_from_str(
+                &self.commodity_id,
+                "prices.commodity_id",
+            )?),
+            currency_id: CommodityId::from(uuid_from_str(&self.currency_id, "prices.currency_id")?),
+            date: date_from_str(&self.date, "prices.date")?,
+            value: decimal_from_str(&self.value, "prices.value")?,
+            source: enum_from_str(&self.source, "prices.source")?,
+            created_at: datetime_from_str(&self.created_at, "prices.created_at")?,
         })
     }
 }
 
-const SELECT_COLS: &str =
-    "id, book_id, commodity_id, currency_id, date, value, source, created_at";
+const SELECT_COLS: &str = "id, book_id, commodity_id, currency_id, date, value, source, created_at";
 
 // ── repository ────────────────────────────────────────────────────────────────
 
@@ -76,14 +78,12 @@ impl PriceRepository {
     }
 
     pub async fn find_by_id(&self, id: PriceId) -> Result<Option<Price>, StorageError> {
-        sqlx::query_as::<_, PriceRow>(&format!(
-            "SELECT {SELECT_COLS} FROM prices WHERE id = ?"
-        ))
-        .bind(id.to_string())
-        .fetch_optional(&self.pool)
-        .await?
-        .map(PriceRow::into_price)
-        .transpose()
+        sqlx::query_as::<_, PriceRow>(&format!("SELECT {SELECT_COLS} FROM prices WHERE id = ?"))
+            .bind(id.to_string())
+            .fetch_optional(&self.pool)
+            .await?
+            .map(PriceRow::into_price)
+            .transpose()
     }
 
     /// All prices in a book, ordered by date descending then commodity.

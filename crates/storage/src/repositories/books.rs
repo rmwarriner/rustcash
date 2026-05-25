@@ -6,32 +6,33 @@ use rustcash_core::{
 use sqlx::FromRow;
 
 use crate::{
-    convert::{date_opt_from_str, datetime_from_str, datetime_opt_from_str, uuid_from_str},
     SqlitePool, StorageError,
+    convert::{date_opt_from_str, datetime_from_str, datetime_opt_from_str, uuid_from_str},
 };
 
 #[derive(FromRow)]
 struct BookRow {
-    id:                   String,
-    name:                 String,
-    description:          Option<String>,
+    id: String,
+    name: String,
+    description: Option<String>,
     default_commodity_id: String,
-    period_close_date:    Option<String>,
-    owner_id:             Option<String>,
-    created_at:           String,
-    modified_at:          String,
-    deleted_at:           Option<String>,
+    period_close_date: Option<String>,
+    owner_id: Option<String>,
+    created_at: String,
+    modified_at: String,
+    deleted_at: Option<String>,
 }
 
 impl BookRow {
     fn into_book(self) -> Result<Book, StorageError> {
         Ok(Book {
-            id:                   BookId::from(uuid_from_str(&self.id, "books.id")?),
-            name:                 self.name,
-            description:          self.description,
-            default_commodity_id: CommodityId::from(
-                uuid_from_str(&self.default_commodity_id, "books.default_commodity_id")?,
-            ),
+            id: BookId::from(uuid_from_str(&self.id, "books.id")?),
+            name: self.name,
+            description: self.description,
+            default_commodity_id: CommodityId::from(uuid_from_str(
+                &self.default_commodity_id,
+                "books.default_commodity_id",
+            )?),
             period_close_date: date_opt_from_str(
                 self.period_close_date.as_deref(),
                 "books.period_close_date",
@@ -41,15 +42,14 @@ impl BookRow {
                 .as_deref()
                 .map(|s| uuid_from_str(s, "books.owner_id").map(UserId::from))
                 .transpose()?,
-            created_at:  datetime_from_str(&self.created_at, "books.created_at")?,
+            created_at: datetime_from_str(&self.created_at, "books.created_at")?,
             modified_at: datetime_from_str(&self.modified_at, "books.modified_at")?,
-            deleted_at:  datetime_opt_from_str(self.deleted_at.as_deref(), "books.deleted_at")?,
+            deleted_at: datetime_opt_from_str(self.deleted_at.as_deref(), "books.deleted_at")?,
         })
     }
 }
 
-const SELECT_COLS: &str =
-    "id, name, description, default_commodity_id, period_close_date, owner_id, \
+const SELECT_COLS: &str = "id, name, description, default_commodity_id, period_close_date, owner_id, \
      created_at, modified_at, deleted_at";
 
 pub struct BookRepository {
@@ -123,12 +123,19 @@ impl BookRepository {
         .rows_affected();
 
         if rows == 0 {
-            return Err(StorageError::NotFound { entity: "Book", id: book.id.to_string() });
+            return Err(StorageError::NotFound {
+                entity: "Book",
+                id: book.id.to_string(),
+            });
         }
         Ok(())
     }
 
-    pub async fn soft_delete(&self, id: BookId, deleted_at: DateTime<Utc>) -> Result<(), StorageError> {
+    pub async fn soft_delete(
+        &self,
+        id: BookId,
+        deleted_at: DateTime<Utc>,
+    ) -> Result<(), StorageError> {
         let rows = sqlx::query(
             "UPDATE books SET deleted_at = ?, modified_at = ? \
              WHERE id = ? AND deleted_at IS NULL",
@@ -141,9 +148,11 @@ impl BookRepository {
         .rows_affected();
 
         if rows == 0 {
-            return Err(StorageError::NotFound { entity: "Book", id: id.to_string() });
+            return Err(StorageError::NotFound {
+                entity: "Book",
+                id: id.to_string(),
+            });
         }
         Ok(())
     }
 }
-

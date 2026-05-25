@@ -10,10 +10,10 @@ use rustcash_core::{
     ids::{AccountId, BookId, CommodityId},
 };
 use rustcash_storage::{
+    SqlitePool,
     repositories::{
         accounts::AccountRepository, books::BookRepository, commodities::CommodityRepository,
     },
-    SqlitePool,
 };
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
@@ -21,51 +21,63 @@ use rustcash_storage::{
 async fn insert_book(pool: &SqlitePool) -> Book {
     let commodity_id = CommodityId::new();
     let book = Book {
-        id:                   BookId::new(),
-        name:                 "Test Book".into(),
-        description:          None,
+        id: BookId::new(),
+        name: "Test Book".into(),
+        description: None,
         default_commodity_id: commodity_id,
-        period_close_date:    None,
-        owner_id:             None,
-        created_at:           Utc::now(),
-        modified_at:          Utc::now(),
-        deleted_at:           None,
+        period_close_date: None,
+        owner_id: None,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     };
-    BookRepository::new(pool.clone()).insert(&book).await.unwrap();
+    BookRepository::new(pool.clone())
+        .insert(&book)
+        .await
+        .unwrap();
     book
 }
 
 async fn insert_commodity(pool: &SqlitePool, book_id: BookId) -> Commodity {
     let c = Commodity {
-        id:         CommodityId::new(),
+        id: CommodityId::new(),
         book_id,
-        namespace:  "CURRENCY".into(),
-        mnemonic:   "USD".into(),
-        name:       "US Dollar".into(),
-        fraction:   100,
-        notes:      None,
+        namespace: "CURRENCY".into(),
+        mnemonic: "USD".into(),
+        name: "US Dollar".into(),
+        fraction: 100,
+        notes: None,
         created_at: Utc::now(),
     };
-    CommodityRepository::new(pool.clone()).insert(&c).await.unwrap();
+    CommodityRepository::new(pool.clone())
+        .insert(&c)
+        .await
+        .unwrap();
     c
 }
 
-fn make_account(book_id: BookId, commodity_id: CommodityId, name: &str, full_name: &str, account_type: AccountType) -> Account {
+fn make_account(
+    book_id: BookId,
+    commodity_id: CommodityId,
+    name: &str,
+    full_name: &str,
+    account_type: AccountType,
+) -> Account {
     Account {
-        id:           AccountId::new(),
+        id: AccountId::new(),
         book_id,
-        parent_id:    None,
-        name:         name.into(),
-        full_name:    full_name.into(),
+        parent_id: None,
+        name: name.into(),
+        full_name: full_name.into(),
         account_type,
         commodity_id,
-        description:  None,
-        placeholder:  false,
-        hidden:       false,
-        sort_order:   0,
-        created_at:   Utc::now(),
-        modified_at:  Utc::now(),
-        deleted_at:   None,
+        description: None,
+        placeholder: false,
+        hidden: false,
+        sort_order: 0,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     }
 }
 
@@ -77,8 +89,20 @@ async fn list_returns_all_active_accounts(pool: SqlitePool) {
     let commodity = insert_commodity(&pool, book.id).await;
     let repo = AccountRepository::new(pool.clone());
 
-    let checking = make_account(book.id, commodity.id, "Checking", "Assets:Checking", AccountType::Bank);
-    let savings  = make_account(book.id, commodity.id, "Savings",  "Assets:Savings",  AccountType::Bank);
+    let checking = make_account(
+        book.id,
+        commodity.id,
+        "Checking",
+        "Assets:Checking",
+        AccountType::Bank,
+    );
+    let savings = make_account(
+        book.id,
+        commodity.id,
+        "Savings",
+        "Assets:Savings",
+        AccountType::Bank,
+    );
     repo.insert(&checking).await.unwrap();
     repo.insert(&savings).await.unwrap();
 
@@ -95,8 +119,20 @@ async fn list_excludes_deleted_accounts(pool: SqlitePool) {
     let commodity = insert_commodity(&pool, book.id).await;
     let repo = AccountRepository::new(pool.clone());
 
-    let active  = make_account(book.id, commodity.id, "Active",  "Assets:Active",  AccountType::Asset);
-    let mut deleted = make_account(book.id, commodity.id, "Gone", "Assets:Gone", AccountType::Asset);
+    let active = make_account(
+        book.id,
+        commodity.id,
+        "Active",
+        "Assets:Active",
+        AccountType::Asset,
+    );
+    let mut deleted = make_account(
+        book.id,
+        commodity.id,
+        "Gone",
+        "Assets:Gone",
+        AccountType::Asset,
+    );
     deleted.deleted_at = Some(Utc::now());
 
     repo.insert(&active).await.unwrap();
@@ -115,7 +151,13 @@ async fn get_account_finds_by_id(pool: SqlitePool) {
     let commodity = insert_commodity(&pool, book.id).await;
     let repo = AccountRepository::new(pool.clone());
 
-    let acct = make_account(book.id, commodity.id, "Checking", "Assets:Checking", AccountType::Bank);
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Checking",
+        "Assets:Checking",
+        AccountType::Bank,
+    );
     repo.insert(&acct).await.unwrap();
 
     let found = get_account(&pool, &acct.id.to_string()).await.unwrap();
@@ -146,11 +188,19 @@ async fn balance_is_zero_for_account_with_no_transactions(pool: SqlitePool) {
     let commodity = insert_commodity(&pool, book.id).await;
     let repo = AccountRepository::new(pool.clone());
 
-    let acct = make_account(book.id, commodity.id, "Checking", "Assets:Checking", AccountType::Bank);
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Checking",
+        "Assets:Checking",
+        AccountType::Bank,
+    );
     repo.insert(&acct).await.unwrap();
 
     let as_of = NaiveDate::from_ymd_opt(2025, 1, 1).unwrap();
-    let balance = get_account_balance(&pool, &acct.id.to_string(), book.id, as_of).await.unwrap();
+    let balance = get_account_balance(&pool, &acct.id.to_string(), book.id, as_of)
+        .await
+        .unwrap();
     assert_eq!(balance.balance, rust_decimal::Decimal::ZERO);
     assert_eq!(balance.account_id, acct.id);
 }
@@ -160,20 +210,20 @@ async fn balance_is_zero_for_account_with_no_transactions(pool: SqlitePool) {
 #[test]
 fn render_table_has_header_and_row() {
     let acct = Account {
-        id:           AccountId::new(),
-        book_id:      BookId::new(),
-        parent_id:    None,
-        name:         "Checking".into(),
-        full_name:    "Assets:Checking".into(),
+        id: AccountId::new(),
+        book_id: BookId::new(),
+        parent_id: None,
+        name: "Checking".into(),
+        full_name: "Assets:Checking".into(),
         account_type: AccountType::Bank,
         commodity_id: CommodityId::new(),
-        description:  None,
-        placeholder:  false,
-        hidden:       false,
-        sort_order:   0,
-        created_at:   Utc::now(),
-        modified_at:  Utc::now(),
-        deleted_at:   None,
+        description: None,
+        placeholder: false,
+        hidden: false,
+        sort_order: 0,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     };
     let output = render_table(&[acct]);
     assert!(output.contains("FULL NAME"));
@@ -203,20 +253,20 @@ fn account_type_str_is_snake_case() {
 #[test]
 fn render_detail_shows_key_fields() {
     let acct = Account {
-        id:           AccountId::new(),
-        book_id:      BookId::new(),
-        parent_id:    None,
-        name:         "Checking".into(),
-        full_name:    "Assets:Checking".into(),
+        id: AccountId::new(),
+        book_id: BookId::new(),
+        parent_id: None,
+        name: "Checking".into(),
+        full_name: "Assets:Checking".into(),
         account_type: AccountType::Bank,
         commodity_id: CommodityId::new(),
-        description:  Some("My main account".into()),
-        placeholder:  false,
-        hidden:       false,
-        sort_order:   0,
-        created_at:   Utc::now(),
-        modified_at:  Utc::now(),
-        deleted_at:   None,
+        description: Some("My main account".into()),
+        placeholder: false,
+        hidden: false,
+        sort_order: 0,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     };
     let output = render_detail(&acct);
     assert!(output.contains("Assets:Checking"));

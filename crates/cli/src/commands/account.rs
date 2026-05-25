@@ -1,14 +1,19 @@
 use anyhow::Context as _;
 use chrono::{Local, NaiveDate};
-use rustcash_core::{account::{Account, AccountType}, ids::{AccountId, BookId}};
+use rustcash_core::{
+    account::{Account, AccountType},
+    ids::{AccountId, BookId},
+};
 use rustcash_engine::balance::{AccountBalance, BalanceService};
-use rustcash_storage::{repositories::accounts::AccountRepository, SqlitePool};
+use rustcash_storage::{SqlitePool, repositories::accounts::AccountRepository};
 use serde_json;
 
 // ── data fetchers ─────────────────────────────────────────────────────────────
 
 pub async fn list_accounts(pool: &SqlitePool, book_id: BookId) -> anyhow::Result<Vec<Account>> {
-    Ok(AccountRepository::new(pool.clone()).find_by_book(book_id).await?)
+    Ok(AccountRepository::new(pool.clone())
+        .find_by_book(book_id)
+        .await?)
 }
 
 pub async fn get_account(pool: &SqlitePool, id_str: &str) -> anyhow::Result<Account> {
@@ -83,27 +88,38 @@ pub fn render_csv(accounts: &[Account]) -> String {
 
 pub fn render_detail(account: &Account) -> String {
     let mut out = String::new();
-    out.push_str(&format!("{:<14} {}\n", "ID:",        account.id));
-    out.push_str(&format!("{:<14} {}\n", "Name:",      account.name));
+    out.push_str(&format!("{:<14} {}\n", "ID:", account.id));
+    out.push_str(&format!("{:<14} {}\n", "Name:", account.name));
     out.push_str(&format!("{:<14} {}\n", "Full name:", account.full_name));
-    out.push_str(&format!("{:<14} {}\n", "Type:",      account_type_str(account.account_type)));
+    out.push_str(&format!(
+        "{:<14} {}\n",
+        "Type:",
+        account_type_str(account.account_type)
+    ));
     out.push_str(&format!("{:<14} {}\n", "Commodity:", account.commodity_id));
     if let Some(desc) = &account.description {
         out.push_str(&format!("{:<14} {}\n", "Description:", desc));
     }
     out.push_str(&format!("{:<14} {}\n", "Placeholder:", account.placeholder));
-    out.push_str(&format!("{:<14} {}\n", "Hidden:",    account.hidden));
-    out.push_str(&format!("{:<14} {}\n", "Created:",   account.created_at.format("%Y-%m-%d %H:%M UTC")));
+    out.push_str(&format!("{:<14} {}\n", "Hidden:", account.hidden));
+    out.push_str(&format!(
+        "{:<14} {}\n",
+        "Created:",
+        account.created_at.format("%Y-%m-%d %H:%M UTC")
+    ));
     out
 }
 
 pub fn render_balance(account: &Account, balance: &AccountBalance) -> String {
     let mut out = String::new();
-    out.push_str(&format!("{:<14} {}\n", "Account:",    account.full_name));
-    out.push_str(&format!("{:<14} {}\n", "As of:",      balance.as_of));
-    out.push_str(&format!("{:<14} {}\n", "Balance:",    balance.balance));
-    out.push_str(&format!("{:<14} {}\n", "Cleared:",    balance.cleared_balance));
-    out.push_str(&format!("{:<14} {}\n", "Reconciled:", balance.reconciled_balance));
+    out.push_str(&format!("{:<14} {}\n", "Account:", account.full_name));
+    out.push_str(&format!("{:<14} {}\n", "As of:", balance.as_of));
+    out.push_str(&format!("{:<14} {}\n", "Balance:", balance.balance));
+    out.push_str(&format!("{:<14} {}\n", "Cleared:", balance.cleared_balance));
+    out.push_str(&format!(
+        "{:<14} {}\n",
+        "Reconciled:", balance.reconciled_balance
+    ));
     out
 }
 
@@ -113,8 +129,8 @@ pub async fn cmd_list(pool: &SqlitePool, book_id: BookId, format: &str) -> anyho
     let accounts = list_accounts(pool, book_id).await?;
     let output = match format {
         "json" => render_json(&accounts)?,
-        "csv"  => render_csv(&accounts),
-        _      => render_table(&accounts),
+        "csv" => render_csv(&accounts),
+        _ => render_table(&accounts),
     };
     print!("{output}");
     Ok(())

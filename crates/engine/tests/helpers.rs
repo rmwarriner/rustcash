@@ -13,41 +13,45 @@ use rustcash_core::{
 use rustcash_storage::{
     SqlitePool,
     repositories::{
-        accounts::AccountRepository,
-        books::BookRepository,
-        commodities::CommodityRepository,
+        accounts::AccountRepository, books::BookRepository, commodities::CommodityRepository,
         transactions::TransactionRepository,
     },
 };
 
 pub async fn insert_book(pool: &SqlitePool) -> Book {
     let book = Book {
-        id:                   BookId::new(),
-        name:                 "Test Book".to_string(),
-        description:          None,
+        id: BookId::new(),
+        name: "Test Book".to_string(),
+        description: None,
         default_commodity_id: CommodityId::new(),
-        period_close_date:    None,
-        owner_id:             None,
-        created_at:           Utc::now(),
-        modified_at:          Utc::now(),
-        deleted_at:           None,
+        period_close_date: None,
+        owner_id: None,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     };
-    BookRepository::new(pool.clone()).insert(&book).await.unwrap();
+    BookRepository::new(pool.clone())
+        .insert(&book)
+        .await
+        .unwrap();
     book
 }
 
 pub async fn insert_commodity(pool: &SqlitePool, book_id: BookId) -> Commodity {
     let c = Commodity {
-        id:         CommodityId::new(),
+        id: CommodityId::new(),
         book_id,
-        namespace:  "CURRENCY".to_string(),
-        mnemonic:   "USD".to_string(),
-        name:       "US Dollar".to_string(),
-        fraction:   100,
-        notes:      None,
+        namespace: "CURRENCY".to_string(),
+        mnemonic: "USD".to_string(),
+        name: "US Dollar".to_string(),
+        fraction: 100,
+        notes: None,
         created_at: Utc::now(),
     };
-    CommodityRepository::new(pool.clone()).insert(&c).await.unwrap();
+    CommodityRepository::new(pool.clone())
+        .insert(&c)
+        .await
+        .unwrap();
     c
 }
 
@@ -59,39 +63,42 @@ pub async fn insert_account(
     account_type: AccountType,
 ) -> Account {
     let acct = Account {
-        id:           AccountId::new(),
+        id: AccountId::new(),
         book_id,
-        parent_id:    None,
-        name:         name.to_string(),
-        full_name:    name.to_string(),
+        parent_id: None,
+        name: name.to_string(),
+        full_name: name.to_string(),
         account_type,
         commodity_id,
-        description:  None,
-        placeholder:  false,
-        hidden:       false,
-        sort_order:   0,
-        created_at:   Utc::now(),
-        modified_at:  Utc::now(),
-        deleted_at:   None,
+        description: None,
+        placeholder: false,
+        hidden: false,
+        sort_order: 0,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     };
-    AccountRepository::new(pool.clone()).insert(&acct).await.unwrap();
+    AccountRepository::new(pool.clone())
+        .insert(&acct)
+        .await
+        .unwrap();
     acct
 }
 
 pub fn make_split(account_id: AccountId, commodity_id: CommodityId, amount: Decimal) -> Split {
     Split {
-        id:              SplitId::new(),
+        id: SplitId::new(),
         account_id,
         amount,
-        value:           amount,
+        value: amount,
         commodity_id,
         reconcile_state: rustcash_core::transaction::ReconcileState::Unreconciled,
-        reconcile_date:  None,
-        memo:            None,
-        tags:            Vec::new(),
-        action:          None,
-        lot_id:          None,
-        created_at:      Utc::now(),
+        reconcile_date: None,
+        memo: None,
+        tags: Vec::new(),
+        action: None,
+        lot_id: None,
+        created_at: Utc::now(),
     }
 }
 
@@ -111,7 +118,7 @@ pub fn make_txn(
         date,
         description,
         vec![
-            make_split(debit,  commodity_id,  amount),
+            make_split(debit, commodity_id, amount),
             make_split(credit, commodity_id, -amount),
         ],
     )
@@ -119,5 +126,8 @@ pub fn make_txn(
 }
 
 pub async fn insert_txn(pool: &SqlitePool, txn: &Transaction) {
-    TransactionRepository::new(pool.clone()).insert(txn).await.unwrap();
+    TransactionRepository::new(pool.clone())
+        .insert(txn)
+        .await
+        .unwrap();
 }

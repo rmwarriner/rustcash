@@ -27,29 +27,29 @@ pub enum ParamValue {
 /// Metadata describing a report — used in the report registry and API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportMetadata {
-    pub id:          String,
-    pub name:        String,
+    pub id: String,
+    pub name: String,
     pub description: String,
-    pub author:      Option<String>,
-    pub version:     String,
-    pub parameters:  Vec<ReportParamDef>,
+    pub author: Option<String>,
+    pub version: String,
+    pub parameters: Vec<ReportParamDef>,
 }
 
 /// Definition of one parameter accepted by a report.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportParamDef {
-    pub name:        String,
-    pub label:       String,
+    pub name: String,
+    pub label: String,
     pub description: Option<String>,
-    pub required:    bool,
-    pub default:     Option<ParamValue>,
+    pub required: bool,
+    pub default: Option<ParamValue>,
 }
 
 /// Date range passed to every report.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DateRange {
     pub from: NaiveDate,
-    pub to:   NaiveDate,
+    pub to: NaiveDate,
 }
 
 /// Output formats a report can produce.

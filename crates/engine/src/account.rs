@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use rustcash_core::{account::Account, ids::AccountId};
-use rustcash_storage::{repositories::accounts::AccountRepository, SqlitePool};
+use rustcash_storage::{SqlitePool, repositories::accounts::AccountRepository};
 
 use crate::EngineError;
 
@@ -22,7 +22,9 @@ impl AccountService {
         if let Some(parent_id) = account.parent_id {
             repo.find_by_id(parent_id)
                 .await?
-                .ok_or_else(|| EngineError::AccountNotFound { id: parent_id.to_string() })?;
+                .ok_or_else(|| EngineError::AccountNotFound {
+                    id: parent_id.to_string(),
+                })?;
         }
 
         repo.insert(account).await?;
@@ -45,7 +47,7 @@ impl AccountService {
             .await?
             .ok_or_else(|| EngineError::AccountNotFound { id: id.to_string() })?;
 
-        account.name      = name;
+        account.name = name;
         account.full_name = full_name.clone();
         account.modified_at = Utc::now();
         repo.update(&account).await?;
@@ -56,7 +58,7 @@ impl AccountService {
         while let Some((parent_id, parent_full_name)) = queue.pop() {
             for mut child in repo.find_children(parent_id).await? {
                 let new_full_name = format!("{}:{}", parent_full_name, child.name);
-                child.full_name  = new_full_name.clone();
+                child.full_name = new_full_name.clone();
                 child.modified_at = Utc::now();
                 repo.update(&child).await?;
                 queue.push((child.id, new_full_name));

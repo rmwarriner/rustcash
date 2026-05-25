@@ -1,19 +1,23 @@
+use crate::customer::CustomerId;
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
+use rustcash_core::ids::{AccountId, BookId, CommodityId, TransactionId};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use rustcash_core::ids::{AccountId, BookId, CommodityId, TransactionId};
-use crate::customer::CustomerId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct InvoiceId(pub Uuid);
 
 impl InvoiceId {
-    pub fn new() -> Self { Self(Uuid::new_v4()) }
+    pub fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
 }
 
 impl Default for InvoiceId {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,9 +32,9 @@ pub enum InvoiceStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvoiceLine {
     pub description: String,
-    pub quantity:    Decimal,
-    pub unit_price:  Decimal,
-    pub account_id:  AccountId,
+    pub quantity: Decimal,
+    pub unit_price: Decimal,
+    pub account_id: AccountId,
 }
 
 impl InvoiceLine {
@@ -41,18 +45,18 @@ impl InvoiceLine {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Invoice {
-    pub id:           InvoiceId,
-    pub book_id:      BookId,
-    pub customer_id:  CustomerId,
-    pub number:       String,
-    pub date:         NaiveDate,
-    pub due_date:     Option<NaiveDate>,
-    pub lines:        Vec<InvoiceLine>,
+    pub id: InvoiceId,
+    pub book_id: BookId,
+    pub customer_id: CustomerId,
+    pub number: String,
+    pub date: NaiveDate,
+    pub due_date: Option<NaiveDate>,
+    pub lines: Vec<InvoiceLine>,
     pub commodity_id: CommodityId,
-    pub status:       InvoiceStatus,
+    pub status: InvoiceStatus,
     /// Set when invoice is posted — links to the AR transaction.
     pub transaction_id: Option<TransactionId>,
-    pub notes:        Option<String>,
+    pub notes: Option<String>,
 }
 
 impl Invoice {

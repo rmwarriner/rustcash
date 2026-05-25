@@ -1,11 +1,8 @@
 //! Transaction lifecycle: enter (draft), post, void.
 
 use chrono::Utc;
-use rustcash_core::{
-    ids::TransactionId,
-    transaction::TransactionStatus,
-};
-use rustcash_storage::{repositories::transactions::TransactionRepository, SqlitePool};
+use rustcash_core::{ids::TransactionId, transaction::TransactionStatus};
+use rustcash_storage::{SqlitePool, repositories::transactions::TransactionRepository};
 
 use crate::EngineError;
 
@@ -19,7 +16,10 @@ impl TransactionService {
     }
 
     /// Store a new transaction in Draft state.
-    pub async fn enter(&self, txn: &rustcash_core::transaction::Transaction) -> Result<(), EngineError> {
+    pub async fn enter(
+        &self,
+        txn: &rustcash_core::transaction::Transaction,
+    ) -> Result<(), EngineError> {
         TransactionRepository::new(self.pool.clone())
             .insert(txn)
             .await?;
@@ -37,7 +37,7 @@ impl TransactionService {
         if !txn.status.is_draft() {
             return Err(EngineError::InvalidStatusTransition {
                 from: format!("{:?}", txn.status),
-                to:   "posted".to_string(),
+                to: "posted".to_string(),
             });
         }
 
@@ -65,7 +65,7 @@ impl TransactionService {
         if !txn.status.is_posted() {
             return Err(EngineError::InvalidStatusTransition {
                 from: format!("{:?}", txn.status),
-                to:   "void".to_string(),
+                to: "void".to_string(),
             });
         }
 

@@ -27,6 +27,10 @@ fn default_bind() -> String {
 
 impl Default for ApiConfig {
     fn default() -> Self {
-        Self { bind: default_bind(), token: None, log_format: LogFormat::default() }
+        Self {
+            bind: default_bind(),
+            token: None,
+            log_format: LogFormat::default(),
+        }
     }
 }

@@ -6,11 +6,11 @@ use rustcash_core::{
 use sqlx::FromRow;
 
 use crate::{
+    SqlitePool, StorageError,
     convert::{
         date_from_str, date_opt_from_str, datetime_from_str, decimal_from_str, enum_from_str,
         enum_to_str, tags_from_json, tags_to_json, uuid_from_str,
     },
-    SqlitePool, StorageError,
 };
 
 // ── row types ─────────────────────────────────────────────────────────────────
@@ -20,71 +20,73 @@ use crate::{
 #[derive(FromRow)]
 struct TxnSplitRow {
     // transaction columns
-    txn_id:                  String,
-    book_id:                 String,
-    txn_date:                String,
-    description:             String,
-    notes:                   Option<String>,
-    txn_tags:                String,
-    status:                  String,
-    voiding_transaction_id:  Option<String>,
-    entered_at:              String,
-    modified_at:             String,
+    txn_id: String,
+    book_id: String,
+    txn_date: String,
+    description: String,
+    notes: Option<String>,
+    txn_tags: String,
+    status: String,
+    voiding_transaction_id: Option<String>,
+    entered_at: String,
+    modified_at: String,
     // split columns
-    split_id:                String,
-    account_id:              String,
-    amount:                  String,
-    value:                   String,
-    commodity_id:            String,
-    reconcile_state:         String,
-    reconcile_date:          Option<String>,
-    memo:                    Option<String>,
-    split_tags:              String,
-    action:                  Option<String>,
-    lot_id:                  Option<String>,
-    split_created_at:        String,
+    split_id: String,
+    account_id: String,
+    amount: String,
+    value: String,
+    commodity_id: String,
+    reconcile_state: String,
+    reconcile_date: Option<String>,
+    memo: Option<String>,
+    split_tags: String,
+    action: Option<String>,
+    lot_id: Option<String>,
+    split_created_at: String,
 }
 
 // ── row → domain conversion ───────────────────────────────────────────────────
 
 fn row_to_transaction_stub(row: &TxnSplitRow) -> Result<Transaction, StorageError> {
     Ok(Transaction {
-        id:     TransactionId::from(uuid_from_str(&row.txn_id, "transactions.id")?),
+        id: TransactionId::from(uuid_from_str(&row.txn_id, "transactions.id")?),
         book_id: BookId::from(uuid_from_str(&row.book_id, "transactions.book_id")?),
-        date:   date_from_str(&row.txn_date, "transactions.date")?,
+        date: date_from_str(&row.txn_date, "transactions.date")?,
         description: row.description.clone(),
-        notes:  row.notes.clone(),
-        tags:   tags_from_json(&row.txn_tags, "transactions.tags")?,
+        notes: row.notes.clone(),
+        tags: tags_from_json(&row.txn_tags, "transactions.tags")?,
         splits: Vec::new(),
         status: enum_from_str(&row.status, "transactions.status")?,
         voiding_transaction_id: row
             .voiding_transaction_id
             .as_deref()
-            .map(|s| uuid_from_str(s, "transactions.voiding_transaction_id").map(TransactionId::from))
+            .map(|s| {
+                uuid_from_str(s, "transactions.voiding_transaction_id").map(TransactionId::from)
+            })
             .transpose()?,
-        entered_at:  datetime_from_str(&row.entered_at, "transactions.entered_at")?,
+        entered_at: datetime_from_str(&row.entered_at, "transactions.entered_at")?,
         modified_at: datetime_from_str(&row.modified_at, "transactions.modified_at")?,
     })
 }
 
 fn row_to_split(row: &TxnSplitRow) -> Result<Split, StorageError> {
     Ok(Split {
-        id:              SplitId::from(uuid_from_str(&row.split_id, "splits.id")?),
-        account_id:      AccountId::from(uuid_from_str(&row.account_id, "splits.account_id")?),
-        amount:          decimal_from_str(&row.amount, "splits.amount")?,
-        value:           decimal_from_str(&row.value, "splits.value")?,
-        commodity_id:    CommodityId::from(uuid_from_str(&row.commodity_id, "splits.commodity_id")?),
+        id: SplitId::from(uuid_from_str(&row.split_id, "splits.id")?),
+        account_id: AccountId::from(uuid_from_str(&row.account_id, "splits.account_id")?),
+        amount: decimal_from_str(&row.amount, "splits.amount")?,
+        value: decimal_from_str(&row.value, "splits.value")?,
+        commodity_id: CommodityId::from(uuid_from_str(&row.commodity_id, "splits.commodity_id")?),
         reconcile_state: enum_from_str(&row.reconcile_state, "splits.reconcile_state")?,
-        reconcile_date:  date_opt_from_str(row.reconcile_date.as_deref(), "splits.reconcile_date")?,
-        memo:            row.memo.clone(),
-        tags:            tags_from_json(&row.split_tags, "splits.tags")?,
-        action:          row.action.clone(),
-        lot_id:          row
+        reconcile_date: date_opt_from_str(row.reconcile_date.as_deref(), "splits.reconcile_date")?,
+        memo: row.memo.clone(),
+        tags: tags_from_json(&row.split_tags, "splits.tags")?,
+        action: row.action.clone(),
+        lot_id: row
             .lot_id
             .as_deref()
             .map(|s| uuid_from_str(s, "splits.lot_id").map(LotId::from))
             .transpose()?,
-        created_at:      datetime_from_str(&row.split_created_at, "splits.created_at")?,
+        created_at: datetime_from_str(&row.split_created_at, "splits.created_at")?,
     })
 }
 
@@ -94,7 +96,10 @@ fn rows_to_transactions(rows: Vec<TxnSplitRow>) -> Result<Vec<Transaction>, Stor
     let mut result: Vec<Transaction> = Vec::new();
     for row in rows {
         let split = row_to_split(&row)?;
-        if result.last().is_some_and(|t: &Transaction| t.id.to_string() == row.txn_id) {
+        if result
+            .last()
+            .is_some_and(|t: &Transaction| t.id.to_string() == row.txn_id)
+        {
             result.last_mut().unwrap().splits.push(split);
         } else {
             let mut txn = row_to_transaction_stub(&row)?;
@@ -266,15 +271,14 @@ impl TransactionRepository {
         state: ReconcileState,
         date: Option<chrono::NaiveDate>,
     ) -> Result<(), StorageError> {
-        let rows = sqlx::query(
-            "UPDATE splits SET reconcile_state = ?, reconcile_date = ? WHERE id = ?",
-        )
-        .bind(enum_to_str(&state))
-        .bind(date.map(|d| d.to_string()))
-        .bind(split_id.to_string())
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
+        let rows =
+            sqlx::query("UPDATE splits SET reconcile_state = ?, reconcile_date = ? WHERE id = ?")
+                .bind(enum_to_str(&state))
+                .bind(date.map(|d| d.to_string()))
+                .bind(split_id.to_string())
+                .execute(&self.pool)
+                .await?
+                .rows_affected();
 
         if rows == 0 {
             return Err(StorageError::NotFound {

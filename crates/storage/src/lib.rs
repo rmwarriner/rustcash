@@ -12,4 +12,4 @@ pub use error::StorageError;
 
 /// Shared type alias so callers don't repeat the pool type everywhere.
 pub type SqlitePool = sqlx::SqlitePool;
-pub type PgPool     = sqlx::PgPool;
+pub type PgPool = sqlx::PgPool;

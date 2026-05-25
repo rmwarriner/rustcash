@@ -70,21 +70,21 @@ impl AccountType {
 /// A node in the account tree.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Account {
-    pub id:           AccountId,
-    pub book_id:      BookId,
-    pub parent_id:    Option<AccountId>,
-    pub name:         String,
-    pub full_name:    String, // e.g. "Assets:Current Assets:Checking"
+    pub id: AccountId,
+    pub book_id: BookId,
+    pub parent_id: Option<AccountId>,
+    pub name: String,
+    pub full_name: String, // e.g. "Assets:Current Assets:Checking"
     pub account_type: AccountType,
     pub commodity_id: CommodityId,
-    pub description:  Option<String>,
+    pub description: Option<String>,
     /// Placeholder accounts are containers only — no direct transactions.
-    pub placeholder:  bool,
-    pub hidden:       bool,
-    pub sort_order:   i32,
-    pub created_at:   DateTime<Utc>,
-    pub modified_at:  DateTime<Utc>,
-    pub deleted_at:   Option<DateTime<Utc>>,
+    pub placeholder: bool,
+    pub hidden: bool,
+    pub sort_order: i32,
+    pub created_at: DateTime<Utc>,
+    pub modified_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 impl Account {

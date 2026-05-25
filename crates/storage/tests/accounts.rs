@@ -6,10 +6,10 @@ use rustcash_core::{
     ids::{AccountId, BookId, CommodityId},
 };
 use rustcash_storage::{
+    SqlitePool, StorageError,
     repositories::{
         accounts::AccountRepository, books::BookRepository, commodities::CommodityRepository,
     },
-    SqlitePool, StorageError,
 };
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
@@ -17,51 +17,57 @@ use rustcash_storage::{
 async fn insert_book(pool: &SqlitePool) -> Book {
     let commodity_id = CommodityId::new();
     let book = Book {
-        id:                   BookId::new(),
-        name:                 "Test Book".to_string(),
-        description:          None,
+        id: BookId::new(),
+        name: "Test Book".to_string(),
+        description: None,
         default_commodity_id: commodity_id,
-        period_close_date:    None,
-        owner_id:             None,
-        created_at:           Utc::now(),
-        modified_at:          Utc::now(),
-        deleted_at:           None,
+        period_close_date: None,
+        owner_id: None,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     };
-    BookRepository::new(pool.clone()).insert(&book).await.unwrap();
+    BookRepository::new(pool.clone())
+        .insert(&book)
+        .await
+        .unwrap();
     book
 }
 
 async fn insert_commodity(pool: &SqlitePool, book_id: BookId) -> Commodity {
     let c = Commodity {
-        id:         CommodityId::new(),
+        id: CommodityId::new(),
         book_id,
-        namespace:  "CURRENCY".to_string(),
-        mnemonic:   "USD".to_string(),
-        name:       "US Dollar".to_string(),
-        fraction:   100,
-        notes:      None,
+        namespace: "CURRENCY".to_string(),
+        mnemonic: "USD".to_string(),
+        name: "US Dollar".to_string(),
+        fraction: 100,
+        notes: None,
         created_at: Utc::now(),
     };
-    CommodityRepository::new(pool.clone()).insert(&c).await.unwrap();
+    CommodityRepository::new(pool.clone())
+        .insert(&c)
+        .await
+        .unwrap();
     c
 }
 
 fn make_account(book_id: BookId, commodity_id: CommodityId) -> Account {
     Account {
-        id:           AccountId::new(),
+        id: AccountId::new(),
         book_id,
-        parent_id:    None,
-        name:         "Assets".to_string(),
-        full_name:    "Assets".to_string(),
+        parent_id: None,
+        name: "Assets".to_string(),
+        full_name: "Assets".to_string(),
         account_type: AccountType::Asset,
         commodity_id,
-        description:  None,
-        placeholder:  false,
-        hidden:       false,
-        sort_order:   0,
-        created_at:   Utc::now(),
-        modified_at:  Utc::now(),
-        deleted_at:   None,
+        description: None,
+        placeholder: false,
+        hidden: false,
+        sort_order: 0,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     }
 }
 
@@ -93,20 +99,20 @@ async fn round_trip_preserves_all_fields(pool: SqlitePool) {
     let parent_id = AccountId::new();
     let now = Utc::now();
     let acct = Account {
-        id:           AccountId::new(),
-        book_id:      book.id,
-        parent_id:    Some(parent_id),
-        name:         "Checking".to_string(),
-        full_name:    "Assets:Checking".to_string(),
+        id: AccountId::new(),
+        book_id: book.id,
+        parent_id: Some(parent_id),
+        name: "Checking".to_string(),
+        full_name: "Assets:Checking".to_string(),
         account_type: AccountType::Bank,
         commodity_id: commodity.id,
-        description:  Some("Main checking account".to_string()),
-        placeholder:  true,
-        hidden:       true,
-        sort_order:   42,
-        created_at:   now,
-        modified_at:  now,
-        deleted_at:   None,
+        description: Some("Main checking account".to_string()),
+        placeholder: true,
+        hidden: true,
+        sort_order: 42,
+        created_at: now,
+        modified_at: now,
+        deleted_at: None,
     };
     // Insert parent shell so FK is satisfied
     let mut parent = make_account(book.id, commodity.id);
@@ -114,20 +120,20 @@ async fn round_trip_preserves_all_fields(pool: SqlitePool) {
     repo.insert(&parent).await.unwrap();
     repo.insert(&acct).await.unwrap();
     let found = repo.find_by_id(acct.id).await.unwrap().unwrap();
-    assert_eq!(found.id,           acct.id);
-    assert_eq!(found.book_id,      acct.book_id);
-    assert_eq!(found.parent_id,    acct.parent_id);
-    assert_eq!(found.name,         acct.name);
-    assert_eq!(found.full_name,    acct.full_name);
+    assert_eq!(found.id, acct.id);
+    assert_eq!(found.book_id, acct.book_id);
+    assert_eq!(found.parent_id, acct.parent_id);
+    assert_eq!(found.name, acct.name);
+    assert_eq!(found.full_name, acct.full_name);
     assert_eq!(found.account_type, acct.account_type);
     assert_eq!(found.commodity_id, acct.commodity_id);
-    assert_eq!(found.description,  acct.description);
-    assert_eq!(found.placeholder,  acct.placeholder);
-    assert_eq!(found.hidden,       acct.hidden);
-    assert_eq!(found.sort_order,   acct.sort_order);
-    assert_eq!(found.created_at,   acct.created_at);
-    assert_eq!(found.modified_at,  acct.modified_at);
-    assert_eq!(found.deleted_at,   acct.deleted_at);
+    assert_eq!(found.description, acct.description);
+    assert_eq!(found.placeholder, acct.placeholder);
+    assert_eq!(found.hidden, acct.hidden);
+    assert_eq!(found.sort_order, acct.sort_order);
+    assert_eq!(found.created_at, acct.created_at);
+    assert_eq!(found.modified_at, acct.modified_at);
+    assert_eq!(found.deleted_at, acct.deleted_at);
 }
 
 #[sqlx::test]
@@ -136,11 +142,21 @@ async fn all_account_types_round_trip(pool: SqlitePool) {
     let commodity = insert_commodity(&pool, book.id).await;
     let repo = AccountRepository::new(pool);
     let types = [
-        AccountType::Asset, AccountType::Cash, AccountType::Bank, AccountType::CreditCard,
-        AccountType::Investment, AccountType::MutualFund, AccountType::Liability,
-        AccountType::LongTermLiability, AccountType::Equity, AccountType::OpeningBalance,
-        AccountType::RetainedEarnings, AccountType::Income, AccountType::Expense,
-        AccountType::Receivable, AccountType::Payable,
+        AccountType::Asset,
+        AccountType::Cash,
+        AccountType::Bank,
+        AccountType::CreditCard,
+        AccountType::Investment,
+        AccountType::MutualFund,
+        AccountType::Liability,
+        AccountType::LongTermLiability,
+        AccountType::Equity,
+        AccountType::OpeningBalance,
+        AccountType::RetainedEarnings,
+        AccountType::Income,
+        AccountType::Expense,
+        AccountType::Receivable,
+        AccountType::Payable,
     ];
     for account_type in types {
         let mut acct = make_account(book.id, commodity.id);
@@ -158,9 +174,9 @@ async fn find_by_book_returns_active_accounts_ordered_by_full_name(pool: SqliteP
     let repo = AccountRepository::new(pool);
 
     for (name, full_name) in [
-        ("Expenses",  "Expenses"),
-        ("Assets",    "Assets"),
-        ("Income",    "Income"),
+        ("Expenses", "Expenses"),
+        ("Assets", "Assets"),
+        ("Income", "Income"),
     ] {
         let mut acct = make_account(book.id, commodity.id);
         acct.name = name.to_string();
@@ -209,13 +225,13 @@ async fn find_children_returns_direct_children_only(pool: SqlitePool) {
     let repo = AccountRepository::new(pool);
 
     // root → child_a → grandchild
-    let root        = make_account(book.id, commodity.id);
+    let root = make_account(book.id, commodity.id);
     let mut child_a = make_account(book.id, commodity.id);
     let mut child_b = make_account(book.id, commodity.id);
     let mut grandchild = make_account(book.id, commodity.id);
 
-    child_a.parent_id    = Some(root.id);
-    child_b.parent_id    = Some(root.id);
+    child_a.parent_id = Some(root.id);
+    child_b.parent_id = Some(root.id);
     grandchild.parent_id = Some(child_a.id);
 
     for acct in [&root, &child_a, &child_b, &grandchild] {
@@ -268,6 +284,9 @@ async fn soft_delete_sets_deleted_at(pool: SqlitePool) {
 #[sqlx::test]
 async fn soft_delete_unknown_id_is_not_found(pool: SqlitePool) {
     let repo = AccountRepository::new(pool);
-    let err = repo.soft_delete(AccountId::new(), Utc::now()).await.unwrap_err();
+    let err = repo
+        .soft_delete(AccountId::new(), Utc::now())
+        .await
+        .unwrap_err();
     assert!(matches!(err, StorageError::NotFound { .. }));
 }

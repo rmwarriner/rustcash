@@ -5,37 +5,40 @@ use rustcash_core::{
     ids::{BookId, CommodityId},
 };
 use rustcash_storage::{
-    repositories::{books::BookRepository, commodities::CommodityRepository},
     SqlitePool, StorageError,
+    repositories::{books::BookRepository, commodities::CommodityRepository},
 };
 
 // ── fixtures ─────────────────────────────────────────────────────────────────
 
 async fn insert_book(pool: &SqlitePool) -> Book {
     let book = Book {
-        id:                   BookId::new(),
-        name:                 "Test Book".to_string(),
-        description:          None,
+        id: BookId::new(),
+        name: "Test Book".to_string(),
+        description: None,
         default_commodity_id: CommodityId::new(),
-        period_close_date:    None,
-        owner_id:             None,
-        created_at:           Utc::now(),
-        modified_at:          Utc::now(),
-        deleted_at:           None,
+        period_close_date: None,
+        owner_id: None,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     };
-    BookRepository::new(pool.clone()).insert(&book).await.unwrap();
+    BookRepository::new(pool.clone())
+        .insert(&book)
+        .await
+        .unwrap();
     book
 }
 
 fn make_commodity(book_id: BookId) -> Commodity {
     Commodity {
-        id:         CommodityId::new(),
+        id: CommodityId::new(),
         book_id,
-        namespace:  "CURRENCY".to_string(),
-        mnemonic:   "USD".to_string(),
-        name:       "US Dollar".to_string(),
-        fraction:   100,
-        notes:      None,
+        namespace: "CURRENCY".to_string(),
+        mnemonic: "USD".to_string(),
+        name: "US Dollar".to_string(),
+        fraction: 100,
+        notes: None,
         created_at: Utc::now(),
     }
 }
@@ -64,24 +67,24 @@ async fn round_trip_preserves_all_fields(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let repo = CommodityRepository::new(pool);
     let c = Commodity {
-        id:         CommodityId::new(),
-        book_id:    book.id,
-        namespace:  "NYSE".to_string(),
-        mnemonic:   "AAPL".to_string(),
-        name:       "Apple Inc.".to_string(),
-        fraction:   1000,
-        notes:      Some("Tech stock".to_string()),
+        id: CommodityId::new(),
+        book_id: book.id,
+        namespace: "NYSE".to_string(),
+        mnemonic: "AAPL".to_string(),
+        name: "Apple Inc.".to_string(),
+        fraction: 1000,
+        notes: Some("Tech stock".to_string()),
         created_at: Utc::now(),
     };
     repo.insert(&c).await.unwrap();
     let found = repo.find_by_id(c.id).await.unwrap().unwrap();
-    assert_eq!(found.id,         c.id);
-    assert_eq!(found.book_id,    c.book_id);
-    assert_eq!(found.namespace,  c.namespace);
-    assert_eq!(found.mnemonic,   c.mnemonic);
-    assert_eq!(found.name,       c.name);
-    assert_eq!(found.fraction,   c.fraction);
-    assert_eq!(found.notes,      c.notes);
+    assert_eq!(found.id, c.id);
+    assert_eq!(found.book_id, c.book_id);
+    assert_eq!(found.namespace, c.namespace);
+    assert_eq!(found.mnemonic, c.mnemonic);
+    assert_eq!(found.name, c.name);
+    assert_eq!(found.fraction, c.fraction);
+    assert_eq!(found.notes, c.notes);
     assert_eq!(found.created_at, c.created_at);
 }
 
@@ -144,11 +147,12 @@ async fn find_by_mnemonic_returns_none_for_wrong_book(pool: SqlitePool) {
     let book_b = insert_book(&pool).await;
     let repo = CommodityRepository::new(pool);
     repo.insert(&make_commodity(book_a.id)).await.unwrap();
-    assert!(repo
-        .find_by_mnemonic(book_b.id, "CURRENCY", "USD")
-        .await
-        .unwrap()
-        .is_none());
+    assert!(
+        repo.find_by_mnemonic(book_b.id, "CURRENCY", "USD")
+            .await
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[sqlx::test]

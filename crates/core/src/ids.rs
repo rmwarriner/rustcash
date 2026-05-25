@@ -5,7 +5,9 @@ use uuid::Uuid;
 macro_rules! id_newtype {
     ($name:ident, $doc:literal) => {
         #[doc = $doc]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+        #[derive(
+            Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+        )]
         pub struct $name(pub Uuid);
 
         impl $name {
@@ -40,12 +42,12 @@ macro_rules! id_newtype {
     };
 }
 
-id_newtype!(UserId,         "Identifies a user account (auth identity).");
-id_newtype!(BookId,        "Identifies a book (a single accounting database).");
-id_newtype!(AccountId,     "Identifies an account in the account tree.");
+id_newtype!(UserId, "Identifies a user account (auth identity).");
+id_newtype!(BookId, "Identifies a book (a single accounting database).");
+id_newtype!(AccountId, "Identifies an account in the account tree.");
 id_newtype!(TransactionId, "Identifies a double-entry transaction.");
-id_newtype!(SplitId,       "Identifies one leg of a transaction.");
-id_newtype!(CommodityId,   "Identifies a commodity or currency.");
-id_newtype!(PriceId,       "Identifies a commodity price quote.");
-id_newtype!(BudgetId,      "Identifies a budget.");
-id_newtype!(LotId,         "Identifies a cost-basis lot (investments).");
+id_newtype!(SplitId, "Identifies one leg of a transaction.");
+id_newtype!(CommodityId, "Identifies a commodity or currency.");
+id_newtype!(PriceId, "Identifies a commodity price quote.");
+id_newtype!(BudgetId, "Identifies a budget.");
+id_newtype!(LotId, "Identifies a cost-basis lot (investments).");

@@ -1,10 +1,16 @@
 use anyhow::Context as _;
 use chrono::Utc;
-use rustcash_core::{book::Book, commodity::Commodity, ids::{BookId, CommodityId}};
+use rustcash_core::{
+    book::Book,
+    commodity::Commodity,
+    ids::{BookId, CommodityId},
+};
 use rustcash_storage::{
-    open_sqlite, run_migrations,
-    repositories::{accounts::AccountRepository, books::BookRepository, commodities::CommodityRepository},
-    SqlitePool,
+    SqlitePool, open_sqlite,
+    repositories::{
+        accounts::AccountRepository, books::BookRepository, commodities::CommodityRepository,
+    },
+    run_migrations,
 };
 
 // ── currency helpers ──────────────────────────────────────────────────────────
@@ -13,23 +19,23 @@ use rustcash_storage::{
 /// to `(code.to_uppercase(), 100)` for anything unrecognised.
 pub fn currency_info(code: &str) -> (String, u32) {
     match code.to_uppercase().as_str() {
-        "USD" => ("US Dollar".into(),          100),
-        "EUR" => ("Euro".into(),               100),
-        "GBP" => ("Pound Sterling".into(),     100),
-        "CAD" => ("Canadian Dollar".into(),    100),
-        "AUD" => ("Australian Dollar".into(),  100),
+        "USD" => ("US Dollar".into(), 100),
+        "EUR" => ("Euro".into(), 100),
+        "GBP" => ("Pound Sterling".into(), 100),
+        "CAD" => ("Canadian Dollar".into(), 100),
+        "AUD" => ("Australian Dollar".into(), 100),
         "NZD" => ("New Zealand Dollar".into(), 100),
-        "CHF" => ("Swiss Franc".into(),        100),
-        "JPY" => ("Japanese Yen".into(),         1),
-        "CNY" => ("Chinese Yuan".into(),        10),
-        "INR" => ("Indian Rupee".into(),       100),
-        "BRL" => ("Brazilian Real".into(),     100),
-        "MXN" => ("Mexican Peso".into(),       100),
-        "SEK" => ("Swedish Krona".into(),      100),
-        "NOK" => ("Norwegian Krone".into(),    100),
-        "DKK" => ("Danish Krone".into(),       100),
-        "SGD" => ("Singapore Dollar".into(),   100),
-        "HKD" => ("Hong Kong Dollar".into(),   100),
+        "CHF" => ("Swiss Franc".into(), 100),
+        "JPY" => ("Japanese Yen".into(), 1),
+        "CNY" => ("Chinese Yuan".into(), 10),
+        "INR" => ("Indian Rupee".into(), 100),
+        "BRL" => ("Brazilian Real".into(), 100),
+        "MXN" => ("Mexican Peso".into(), 100),
+        "SEK" => ("Swedish Krona".into(), 100),
+        "NOK" => ("Norwegian Krone".into(), 100),
+        "DKK" => ("Danish Krone".into(), 100),
+        "SGD" => ("Singapore Dollar".into(), 100),
+        "HKD" => ("Hong Kong Dollar".into(), 100),
         other => (other.to_string(), 100),
     }
 }
@@ -51,33 +57,35 @@ pub async fn create_book_in_pool(
     // `books.default_commodity_id` has no FK constraint, so referencing a
     // not-yet-inserted commodity ID is safe. `commodities.book_id` does have
     // a FK constraint, so the book must exist first.
-    let book_id      = BookId::new();
+    let book_id = BookId::new();
     let commodity_id = CommodityId::new();
 
     let book = Book {
-        id:                   book_id,
-        name:                 name.into(),
-        description:          None,
+        id: book_id,
+        name: name.into(),
+        description: None,
         default_commodity_id: commodity_id,
-        period_close_date:    None,
-        owner_id:             None,
-        created_at:           Utc::now(),
-        modified_at:          Utc::now(),
-        deleted_at:           None,
+        period_close_date: None,
+        owner_id: None,
+        created_at: Utc::now(),
+        modified_at: Utc::now(),
+        deleted_at: None,
     };
     BookRepository::new(pool.clone()).insert(&book).await?;
 
     let commodity = Commodity {
-        id:         commodity_id,
+        id: commodity_id,
         book_id,
-        namespace:  "CURRENCY".into(),
+        namespace: "CURRENCY".into(),
         mnemonic,
-        name:       currency_name,
+        name: currency_name,
         fraction,
-        notes:      None,
+        notes: None,
         created_at: Utc::now(),
     };
-    CommodityRepository::new(pool.clone()).insert(&commodity).await?;
+    CommodityRepository::new(pool.clone())
+        .insert(&commodity)
+        .await?;
 
     Ok((book, commodity))
 }
@@ -139,8 +147,15 @@ pub async fn cmd_status(db_path: &str) -> anyhow::Result<()> {
     println!("Database: {db_path}");
     println!("Books:    {}", books.len());
     for book in &books {
-        let accounts = AccountRepository::new(pool.clone()).find_by_book(book.id).await?;
-        println!("  {} ({}) — {} accounts", book.name, book.id, accounts.len());
+        let accounts = AccountRepository::new(pool.clone())
+            .find_by_book(book.id)
+            .await?;
+        println!(
+            "  {} ({}) — {} accounts",
+            book.name,
+            book.id,
+            accounts.len()
+        );
     }
 
     Ok(())
@@ -151,12 +166,20 @@ pub async fn cmd_backup(_db_path: &str, _output: Option<&str>) -> anyhow::Result
     Ok(())
 }
 
-pub async fn cmd_seed(_db_path: &str, _book_id: Option<&str>, _template: &str) -> anyhow::Result<()> {
+pub async fn cmd_seed(
+    _db_path: &str,
+    _book_id: Option<&str>,
+    _template: &str,
+) -> anyhow::Result<()> {
     println!("database seed — not yet implemented");
     Ok(())
 }
 
-pub async fn cmd_purge(_db_path: &str, _older_than_days: u32, _dry_run: bool) -> anyhow::Result<()> {
+pub async fn cmd_purge(
+    _db_path: &str,
+    _older_than_days: u32,
+    _dry_run: bool,
+) -> anyhow::Result<()> {
     println!("database purge — not yet implemented");
     Ok(())
 }

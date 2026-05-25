@@ -6,57 +6,62 @@ use rustcash_core::{
 use sqlx::FromRow;
 
 use crate::{
+    SqlitePool, StorageError,
     convert::{
         datetime_from_str, datetime_opt_from_str, enum_from_str, enum_to_str, uuid_from_str,
     },
-    SqlitePool, StorageError,
 };
 
 #[derive(FromRow)]
 struct AccountRow {
-    id:           String,
-    book_id:      String,
-    parent_id:    Option<String>,
-    name:         String,
-    full_name:    String,
+    id: String,
+    book_id: String,
+    parent_id: Option<String>,
+    name: String,
+    full_name: String,
     account_type: String,
     commodity_id: String,
-    description:  Option<String>,
-    placeholder:  i64,
-    hidden:       i64,
-    sort_order:   i64,
-    created_at:   String,
-    modified_at:  String,
-    deleted_at:   Option<String>,
+    description: Option<String>,
+    placeholder: i64,
+    hidden: i64,
+    sort_order: i64,
+    created_at: String,
+    modified_at: String,
+    deleted_at: Option<String>,
 }
 
 impl AccountRow {
     fn into_account(self) -> Result<Account, StorageError> {
         Ok(Account {
-            id:           AccountId::from(uuid_from_str(&self.id, "accounts.id")?),
-            book_id:      BookId::from(uuid_from_str(&self.book_id, "accounts.book_id")?),
-            parent_id:    self
+            id: AccountId::from(uuid_from_str(&self.id, "accounts.id")?),
+            book_id: BookId::from(uuid_from_str(&self.book_id, "accounts.book_id")?),
+            parent_id: self
                 .parent_id
                 .as_deref()
                 .map(|s| uuid_from_str(s, "accounts.parent_id").map(AccountId::from))
                 .transpose()?,
-            name:         self.name,
-            full_name:    self.full_name,
-            account_type: enum_from_str::<AccountType>(&self.account_type, "accounts.account_type")?,
-            commodity_id: CommodityId::from(uuid_from_str(&self.commodity_id, "accounts.commodity_id")?),
-            description:  self.description,
-            placeholder:  self.placeholder != 0,
-            hidden:       self.hidden != 0,
-            sort_order:   self.sort_order as i32,
-            created_at:   datetime_from_str(&self.created_at, "accounts.created_at")?,
-            modified_at:  datetime_from_str(&self.modified_at, "accounts.modified_at")?,
-            deleted_at:   datetime_opt_from_str(self.deleted_at.as_deref(), "accounts.deleted_at")?,
+            name: self.name,
+            full_name: self.full_name,
+            account_type: enum_from_str::<AccountType>(
+                &self.account_type,
+                "accounts.account_type",
+            )?,
+            commodity_id: CommodityId::from(uuid_from_str(
+                &self.commodity_id,
+                "accounts.commodity_id",
+            )?),
+            description: self.description,
+            placeholder: self.placeholder != 0,
+            hidden: self.hidden != 0,
+            sort_order: self.sort_order as i32,
+            created_at: datetime_from_str(&self.created_at, "accounts.created_at")?,
+            modified_at: datetime_from_str(&self.modified_at, "accounts.modified_at")?,
+            deleted_at: datetime_opt_from_str(self.deleted_at.as_deref(), "accounts.deleted_at")?,
         })
     }
 }
 
-const SELECT_COLS: &str =
-    "id, book_id, parent_id, name, full_name, account_type, commodity_id, \
+const SELECT_COLS: &str = "id, book_id, parent_id, name, full_name, account_type, commodity_id, \
      description, placeholder, hidden, sort_order, created_at, modified_at, deleted_at";
 
 pub struct AccountRepository {
@@ -95,14 +100,12 @@ impl AccountRepository {
     }
 
     pub async fn find_by_id(&self, id: AccountId) -> Result<Option<Account>, StorageError> {
-        sqlx::query_as::<_, AccountRow>(&format!(
-            "SELECT {SELECT_COLS} FROM accounts WHERE id = ?"
-        ))
-        .bind(id.to_string())
-        .fetch_optional(&self.pool)
-        .await?
-        .map(AccountRow::into_account)
-        .transpose()
+        sqlx::query_as::<_, AccountRow>(&format!("SELECT {SELECT_COLS} FROM accounts WHERE id = ?"))
+            .bind(id.to_string())
+            .fetch_optional(&self.pool)
+            .await?
+            .map(AccountRow::into_account)
+            .transpose()
     }
 
     /// All non-deleted accounts in a book, ordered by full_name.
@@ -122,10 +125,7 @@ impl AccountRepository {
 
     /// Direct children of a parent account (non-deleted only).
     /// Used by the engine for tree traversal and full_name cascade updates.
-    pub async fn find_children(
-        &self,
-        parent_id: AccountId,
-    ) -> Result<Vec<Account>, StorageError> {
+    pub async fn find_children(&self, parent_id: AccountId) -> Result<Vec<Account>, StorageError> {
         sqlx::query_as::<_, AccountRow>(&format!(
             "SELECT {SELECT_COLS} FROM accounts \
              WHERE parent_id = ? AND deleted_at IS NULL \
@@ -189,7 +189,10 @@ impl AccountRepository {
         .rows_affected();
 
         if rows == 0 {
-            return Err(StorageError::NotFound { entity: "Account", id: id.to_string() });
+            return Err(StorageError::NotFound {
+                entity: "Account",
+                id: id.to_string(),
+            });
         }
         Ok(())
     }

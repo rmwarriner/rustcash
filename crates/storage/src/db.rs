@@ -31,7 +31,9 @@ pub async fn open_sqlite(url: &str) -> Result<SqlitePool, StorageError> {
         .await?;
 
     if rows.as_slice() != ["ok"] {
-        return Err(StorageError::Corruption { details: rows.join("; ") });
+        return Err(StorageError::Corruption {
+            details: rows.join("; "),
+        });
     }
 
     Ok(pool)

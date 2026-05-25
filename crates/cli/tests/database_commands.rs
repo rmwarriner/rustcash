@@ -1,5 +1,5 @@
 use rustcash_cli::commands::database::{create_book_in_pool, currency_info};
-use rustcash_storage::{repositories::books::BookRepository, SqlitePool};
+use rustcash_storage::{SqlitePool, repositories::books::BookRepository};
 
 // ── currency_info ─────────────────────────────────────────────────────────────
 
@@ -27,7 +27,9 @@ fn unknown_currency_falls_back_to_code() {
 
 #[sqlx::test(migrations = "../storage/migrations")]
 async fn init_creates_book_and_commodity(pool: SqlitePool) {
-    let (book, commodity) = create_book_in_pool(&pool, "My Finances", "USD").await.unwrap();
+    let (book, commodity) = create_book_in_pool(&pool, "My Finances", "USD")
+        .await
+        .unwrap();
     assert_eq!(book.name, "My Finances");
     assert_eq!(commodity.mnemonic, "USD");
     assert_eq!(commodity.name, "US Dollar");
@@ -38,7 +40,9 @@ async fn init_creates_book_and_commodity(pool: SqlitePool) {
 
 #[sqlx::test(migrations = "../storage/migrations")]
 async fn init_book_is_persisted(pool: SqlitePool) {
-    let (book, _) = create_book_in_pool(&pool, "Test Book", "EUR").await.unwrap();
+    let (book, _) = create_book_in_pool(&pool, "Test Book", "EUR")
+        .await
+        .unwrap();
 
     let found = BookRepository::new(pool.clone())
         .find_by_id(book.id)

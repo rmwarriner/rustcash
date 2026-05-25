@@ -1,13 +1,11 @@
-use anyhow::{bail, Context as _};
+use anyhow::{Context as _, bail};
 use rustcash_core::ids::BookId;
 use rustcash_storage::{
-    open_sqlite, run_migrations,
-    repositories::books::BookRepository,
-    SqlitePool,
+    SqlitePool, open_sqlite, repositories::books::BookRepository, run_migrations,
 };
 
 pub struct Ctx {
-    pub pool:    SqlitePool,
+    pub pool: SqlitePool,
     pub book_id: BookId,
 }
 
@@ -30,9 +28,7 @@ impl Ctx {
             let books = BookRepository::new(pool.clone()).find_all().await?;
             match books.into_iter().next() {
                 Some(b) => b.id,
-                None => bail!(
-                    "no books found — run `rustcash database init` to create one"
-                ),
+                None => bail!("no books found — run `rustcash database init` to create one"),
             }
         };
 

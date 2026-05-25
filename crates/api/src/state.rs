@@ -7,10 +7,14 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        Self { version: env!("CARGO_PKG_VERSION") }
+        Self {
+            version: env!("CARGO_PKG_VERSION"),
+        }
     }
 }
 
 impl Default for AppState {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

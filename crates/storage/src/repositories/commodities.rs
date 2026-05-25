@@ -1,40 +1,42 @@
-use rustcash_core::{commodity::Commodity, ids::{BookId, CommodityId}};
+use rustcash_core::{
+    commodity::Commodity,
+    ids::{BookId, CommodityId},
+};
 use sqlx::FromRow;
 
 use crate::{
-    convert::{datetime_from_str, uuid_from_str},
     SqlitePool, StorageError,
+    convert::{datetime_from_str, uuid_from_str},
 };
 
 #[derive(FromRow)]
 struct CommodityRow {
-    id:         String,
-    book_id:    String,
-    namespace:  String,
-    mnemonic:   String,
-    name:       String,
-    fraction:   i64,
-    notes:      Option<String>,
+    id: String,
+    book_id: String,
+    namespace: String,
+    mnemonic: String,
+    name: String,
+    fraction: i64,
+    notes: Option<String>,
     created_at: String,
 }
 
 impl CommodityRow {
     fn into_commodity(self) -> Result<Commodity, StorageError> {
         Ok(Commodity {
-            id:         CommodityId::from(uuid_from_str(&self.id, "commodities.id")?),
-            book_id:    BookId::from(uuid_from_str(&self.book_id, "commodities.book_id")?),
-            namespace:  self.namespace,
-            mnemonic:   self.mnemonic,
-            name:       self.name,
-            fraction:   self.fraction as u32,
-            notes:      self.notes,
+            id: CommodityId::from(uuid_from_str(&self.id, "commodities.id")?),
+            book_id: BookId::from(uuid_from_str(&self.book_id, "commodities.book_id")?),
+            namespace: self.namespace,
+            mnemonic: self.mnemonic,
+            name: self.name,
+            fraction: self.fraction as u32,
+            notes: self.notes,
             created_at: datetime_from_str(&self.created_at, "commodities.created_at")?,
         })
     }
 }
 
-const SELECT_COLS: &str =
-    "id, book_id, namespace, mnemonic, name, fraction, notes, created_at";
+const SELECT_COLS: &str = "id, book_id, namespace, mnemonic, name, fraction, notes, created_at";
 
 pub struct CommodityRepository {
     pool: SqlitePool,
@@ -124,16 +126,15 @@ impl CommodityRepository {
 
     /// Update mutable fields: name, fraction, notes. namespace/mnemonic are immutable.
     pub async fn update(&self, commodity: &Commodity) -> Result<(), StorageError> {
-        let rows = sqlx::query(
-            "UPDATE commodities SET name = ?, fraction = ?, notes = ? WHERE id = ?",
-        )
-        .bind(&commodity.name)
-        .bind(commodity.fraction as i64)
-        .bind(&commodity.notes)
-        .bind(commodity.id.to_string())
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
+        let rows =
+            sqlx::query("UPDATE commodities SET name = ?, fraction = ?, notes = ? WHERE id = ?")
+                .bind(&commodity.name)
+                .bind(commodity.fraction as i64)
+                .bind(&commodity.notes)
+                .bind(commodity.id.to_string())
+                .execute(&self.pool)
+                .await?
+                .rows_affected();
 
         if rows == 0 {
             return Err(StorageError::NotFound {
