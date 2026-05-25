@@ -94,7 +94,7 @@ fn rows_to_transactions(rows: Vec<TxnSplitRow>) -> Result<Vec<Transaction>, Stor
     let mut result: Vec<Transaction> = Vec::new();
     for row in rows {
         let split = row_to_split(&row)?;
-        if result.last().map_or(false, |t: &Transaction| t.id.to_string() == row.txn_id) {
+        if result.last().is_some_and(|t: &Transaction| t.id.to_string() == row.txn_id) {
             result.last_mut().unwrap().splits.push(split);
         } else {
             let mut txn = row_to_transaction_stub(&row)?;

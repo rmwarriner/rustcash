@@ -7,7 +7,7 @@ pub mod db;
 pub mod error;
 pub mod repositories;
 
-pub use db::open_sqlite;
+pub use db::{open_sqlite, run_migrations};
 pub use error::StorageError;
 
 /// Shared type alias so callers don't repeat the pool type everywhere.

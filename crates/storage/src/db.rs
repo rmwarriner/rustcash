@@ -17,8 +17,7 @@ use crate::{SqlitePool, StorageError};
 /// Runs `PRAGMA quick_check` before returning. Returns `StorageError::Corruption`
 /// if the check reports any problems.
 pub async fn open_sqlite(url: &str) -> Result<SqlitePool, StorageError> {
-    let opts = SqliteConnectOptions::from_str(url)
-        .map_err(sqlx::Error::from)?
+    let opts = SqliteConnectOptions::from_str(url)?
         .journal_mode(SqliteJournalMode::Wal)
         .synchronous(SqliteSynchronous::Normal)
         .foreign_keys(true)
@@ -36,4 +35,15 @@ pub async fn open_sqlite(url: &str) -> Result<SqlitePool, StorageError> {
     }
 
     Ok(pool)
+}
+
+/// Run all pending migrations against an already-opened pool.
+///
+/// Safe to call multiple times — sqlx tracks applied migrations in `_sqlx_migrations`.
+pub async fn run_migrations(pool: &SqlitePool) -> Result<(), StorageError> {
+    sqlx::migrate!()
+        .run(pool)
+        .await
+        .map_err(sqlx::Error::from)?;
+    Ok(())
 }

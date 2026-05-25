@@ -2435,11 +2435,14 @@ dependencies = [
  "rustcash-export",
  "rustcash-import",
  "rustcash-reports",
+ "rustcash-storage",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
