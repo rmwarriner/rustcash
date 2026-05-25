@@ -1,10 +1,20 @@
-//! Account management: creation, renaming (with full_name cascade), soft-delete.
+//! Account management: creation, renaming (with full_name cascade), field updates, soft-delete.
 
 use chrono::Utc;
 use rustcash_core::{account::Account, ids::AccountId};
 use rustcash_storage::{SqlitePool, repositories::accounts::AccountRepository};
 
 use crate::EngineError;
+
+/// Patch bag for `AccountService::update_fields`.
+/// `None` means "leave unchanged"; `Some(v)` means "set to v".
+/// For `description`, `Some(None)` clears the field.
+#[derive(Default)]
+pub struct AccountFieldUpdates {
+    pub description: Option<Option<String>>,
+    pub placeholder: Option<bool>,
+    pub hidden: Option<bool>,
+}
 
 pub struct AccountService {
     pool: SqlitePool,
@@ -65,6 +75,32 @@ impl AccountService {
             }
         }
 
+        Ok(())
+    }
+
+    /// Update mutable account fields without touching name/full_name (use `rename` for that).
+    pub async fn update_fields(
+        &self,
+        id: AccountId,
+        updates: AccountFieldUpdates,
+    ) -> Result<(), EngineError> {
+        let repo = AccountRepository::new(self.pool.clone());
+        let mut account = repo
+            .find_by_id(id)
+            .await?
+            .ok_or_else(|| EngineError::AccountNotFound { id: id.to_string() })?;
+
+        if let Some(v) = updates.description {
+            account.description = v;
+        }
+        if let Some(v) = updates.placeholder {
+            account.placeholder = v;
+        }
+        if let Some(v) = updates.hidden {
+            account.hidden = v;
+        }
+        account.modified_at = Utc::now();
+        repo.update(&account).await?;
         Ok(())
     }
 

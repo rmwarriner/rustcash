@@ -19,7 +19,8 @@ fn jan(day: u32) -> NaiveDate {
 async fn empty_account_has_zero_balance(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
-    let account = insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let account =
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
 
     let svc = BalanceService::new(pool);
     let bal = svc
@@ -37,8 +38,8 @@ async fn draft_transactions_excluded_from_balance(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -72,8 +73,8 @@ async fn posted_transactions_included_in_balance(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -112,8 +113,8 @@ async fn void_transactions_excluded_from_balance(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -154,8 +155,8 @@ async fn balance_respects_as_of_date(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -206,8 +207,8 @@ async fn multiple_posted_transactions_sum_correctly(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -246,8 +247,8 @@ async fn cleared_balance_counts_cleared_and_reconciled_splits(pool: SqlitePool) 
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,

@@ -1,6 +1,6 @@
 use chrono::{NaiveDate, Utc};
 use rustcash_cli::commands::account::{
-    CreateAccountArgs, account_type_str, cmd_create, cmd_delete, cmd_rename, get_account,
+    CreateAccountArgs, account_type_str, cmd_create, cmd_delete, cmd_edit, cmd_rename, get_account,
     get_account_balance, list_accounts, parse_account_type, render_csv, render_detail, render_json,
     render_table,
 };
@@ -638,5 +638,126 @@ async fn delete_by_full_name(pool: SqlitePool) {
 async fn delete_nonexistent_account_errors(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let err = cmd_delete(&pool, book.id, &uuid::Uuid::new_v4().to_string()).await;
+    assert!(err.is_err());
+}
+
+// ── cmd_edit ──────────────────────────────────────────────────────────────────
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn edit_sets_placeholder(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Assets",
+        "Assets",
+        AccountType::Asset,
+    );
+    repo.insert(&acct).await.unwrap();
+
+    cmd_edit(&pool, book.id, "Assets", None, Some(true), None)
+        .await
+        .unwrap();
+
+    let updated = get_account(&pool, &acct.id.to_string(), book.id)
+        .await
+        .unwrap();
+    assert!(updated.placeholder);
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn edit_sets_hidden(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Assets",
+        "Assets",
+        AccountType::Asset,
+    );
+    repo.insert(&acct).await.unwrap();
+
+    cmd_edit(&pool, book.id, &acct.id.to_string(), None, None, Some(true))
+        .await
+        .unwrap();
+
+    let updated = get_account(&pool, &acct.id.to_string(), book.id)
+        .await
+        .unwrap();
+    assert!(updated.hidden);
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn edit_sets_description(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+    let acct = make_account(
+        book.id,
+        commodity.id,
+        "Assets",
+        "Assets",
+        AccountType::Asset,
+    );
+    repo.insert(&acct).await.unwrap();
+
+    cmd_edit(
+        &pool,
+        book.id,
+        "Assets",
+        Some(Some("main asset account")),
+        None,
+        None,
+    )
+    .await
+    .unwrap();
+
+    let updated = get_account(&pool, &acct.id.to_string(), book.id)
+        .await
+        .unwrap();
+    assert_eq!(updated.description.as_deref(), Some("main asset account"));
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn edit_clears_description(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let commodity = insert_commodity(&pool, book.id).await;
+    let repo = AccountRepository::new(pool.clone());
+    let mut acct = make_account(
+        book.id,
+        commodity.id,
+        "Assets",
+        "Assets",
+        AccountType::Asset,
+    );
+    acct.description = Some("old note".into());
+    repo.insert(&acct).await.unwrap();
+
+    cmd_edit(&pool, book.id, "Assets", Some(None), None, None)
+        .await
+        .unwrap();
+
+    let updated = get_account(&pool, &acct.id.to_string(), book.id)
+        .await
+        .unwrap();
+    assert!(updated.description.is_none());
+}
+
+#[sqlx::test(migrations = "../storage/migrations")]
+async fn edit_nonexistent_account_errors(pool: SqlitePool) {
+    let book = insert_book(&pool).await;
+    let err = cmd_edit(
+        &pool,
+        book.id,
+        &uuid::Uuid::new_v4().to_string(),
+        None,
+        None,
+        None,
+    )
+    .await;
     assert!(err.is_err());
 }

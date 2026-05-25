@@ -17,8 +17,8 @@ async fn enter_inserts_draft_transaction(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -52,8 +52,8 @@ async fn post_transitions_draft_to_posted(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -88,8 +88,8 @@ async fn post_already_posted_returns_error(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -120,8 +120,8 @@ async fn post_void_transaction_returns_error(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -153,8 +153,8 @@ async fn void_draft_transaction_returns_error(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -184,8 +184,8 @@ async fn void_sets_status_to_void(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -222,8 +222,8 @@ async fn void_with_replacement_records_link(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
@@ -293,8 +293,8 @@ async fn balance_after_void_returns_to_zero(pool: SqlitePool) {
     let book = insert_book(&pool).await;
     let commodity = insert_commodity(&pool, book.id).await;
     let checking =
-        insert_account(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
-    let expenses = insert_account(
+        insert_account_full(&pool, book.id, commodity.id, "Checking", AccountType::Bank).await;
+    let expenses = insert_account_full(
         &pool,
         book.id,
         commodity.id,
