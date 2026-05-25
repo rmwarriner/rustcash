@@ -3,6 +3,7 @@
 //! centralise the parsing and produce consistent StorageError messages on failure.
 
 use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -54,4 +55,18 @@ pub fn enum_from_str<T: for<'de> Deserialize<'de>>(
 ) -> Result<T, StorageError> {
     serde_json::from_value(serde_json::Value::String(s.to_string()))
         .map_err(|e| StorageError::Constraint(format!("invalid {field} value '{s}': {e}")))
+}
+
+pub fn decimal_from_str(s: &str, field: &'static str) -> Result<Decimal, StorageError> {
+    s.parse::<Decimal>()
+        .map_err(|e| StorageError::Constraint(format!("invalid decimal in {field}: {e}")))
+}
+
+pub fn tags_to_json(tags: &[String]) -> String {
+    serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string())
+}
+
+pub fn tags_from_json(s: &str, field: &'static str) -> Result<Vec<String>, StorageError> {
+    serde_json::from_str(s)
+        .map_err(|e| StorageError::Constraint(format!("invalid JSON tags in {field}: {e}")))
 }

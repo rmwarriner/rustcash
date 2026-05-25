@@ -36,6 +36,7 @@ pub struct Split {
     pub action:          Option<String>,
     /// Cost-basis lot — used for investment gain/loss tracking.
     pub lot_id:          Option<LotId>,
+    pub created_at:      DateTime<Utc>,
 }
 
 impl Split {
