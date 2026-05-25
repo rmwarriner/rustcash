@@ -16,4 +16,7 @@ pub struct Book {
     pub owner_id:             Option<UserId>,
     pub created_at:           DateTime<Utc>,
     pub modified_at:          DateTime<Utc>,
+    /// Soft-delete timestamp. None = active. Set to close or archive a book (see ADR 008).
+    /// Hard purge is a separate, explicit operation after the retention period expires.
+    pub deleted_at:           Option<DateTime<Utc>>,
 }
