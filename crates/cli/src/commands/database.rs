@@ -100,11 +100,9 @@ pub async fn cmd_init(
 ) -> anyhow::Result<()> {
     // Create the parent directory if it doesn't exist yet.
     let fs_path = std::path::Path::new(db_path);
-    if let Some(parent) = fs_path.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("creating directory {}", parent.display()))?;
-        }
+    if let Some(parent) = fs_path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("creating directory {}", parent.display()))?;
     }
 
     let url = db_url(db_path);

@@ -4,6 +4,7 @@ use wasmtime::Engine;
 
 /// Shared wasmtime engine. Create once and reuse across plugin loads.
 pub struct PluginHost {
+    #[allow(dead_code)]
     engine: Engine,
 }
 
